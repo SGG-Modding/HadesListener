@@ -1,2 +1,5 @@
 To "HadesListenerPlugins/HadesListenerPluginTest.py"
 Replace "HadesListenerPluginTest.py"
+
+To "HadesListenerPlugins/HadesListenerPluginTestAlt.py"
+Replace "HadesListenerPluginTestAlt.py"

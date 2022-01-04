@@ -1,12 +1,10 @@
 from hades_listener import HadesListener
 
 with open("out.txt","w") as file:
-    prefix = ""
     def read(x,_):
-        x = x[len(prefix):]
         print(x)
         file.write(x+'\n')
     subsume = HadesListener()
-    subsume.add_hook(prefix,read)
+    subsume.add_hook(read, "", "subsume")
     subsume.load_plugins()
     subsume.launch(False)

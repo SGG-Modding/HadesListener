@@ -1,6 +1,6 @@
 """
+Magic_Gonads (Discord: Magic_Gonads#7347)
 Museus (Discord: Museus#7777)
-Based on subsume.py made by Magic_Gonads (Discord: Magic_Gonads#7347)
 """
 from collections import defaultdict
 import os
@@ -11,8 +11,6 @@ from subprocess import Popen, PIPE, STDOUT
 
 # Do not include extension
 EXECUTABLE_NAME = "Hades"
-# Prefix to check for in output from Hades
-FILTER_TOKEN = "$: "
 # Do not include leading character (/ or -)
 EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true"]
 PLUGIN_SUBPATH = "HadesListenerPlugins"
@@ -70,27 +68,34 @@ class HadesListener:
                     for hook in hooks:
                         hook(output[len(key):], lambda s: print("would send: " + key + s))
 
-    def add_hook(self, pattern, target, source=None):
+    def add_hook(self, callback, prefix="", source=None):
         """Add a target function to be called when pattern is detected
 
         Parameters
         ----------
-        pattern : str
-            pattern to look for in stdout
-        target : function
+        callback : function
             function to call when pattern is detected
+        prefix : str
+            pattern to look for at the start of lines in stdout
         """
-        if target in self.hooks[pattern]:
+        if callback in self.hooks[prefix]:
             return  # Function already hooked
-
-        self.hooks[pattern].append(target)
+        if not callable(callback):
+            if source is not None:
+                raise TypeError("Callback must be callable, blame {source}.")
+            else:
+                raise TypeError("Callback must be callable.")
+        self.hooks[prefix].append(callback)
         if source is not None:
-            target = f"{target} from {source}"
-        print(f"Adding hook on \"{pattern}\" with {target}")
+            callback = f"{callback} from {source}"
+        print(f"Adding hook on \"{prefix}\" with {callback}")
 
     def load_plugins(self):
         for module_finder, name, _ in pkgutil.iter_modules(self.plugins_paths):
             spec = module_finder.find_spec(name)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            self.add_hook(module.prefix, module.hook, name)
+            if hasattr(module, "load"):
+                module.load(self)
+            else:
+                self.add_hook(module.callback, getattr(module, "prefix", ""), name)
