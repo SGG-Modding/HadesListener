@@ -5,6 +5,8 @@ Based on subsume.py made by Magic_Gonads (Discord: Magic_Gonads#7347)
 from collections import defaultdict
 import os
 import pathlib
+import pkgutil
+import importlib.util
 from subprocess import Popen, PIPE, STDOUT
 
 # Do not include extension
@@ -13,6 +15,7 @@ EXECUTABLE_NAME = "Hades"
 FILTER_TOKEN = "$: "
 # Do not include leading character (/ or -)
 EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true"]
+PLUGIN_SUBPATH = "HadesListenerPlugins"
 
 
 class HadesListener:
@@ -27,6 +30,9 @@ class HadesListener:
                 pathlib.PurePath() / "x64" / f"{EXECUTABLE_NAME}.exe"
             )
             self.args = [f"/{arg}" for arg in EXECUTABLE_ARGS]
+            self.plugins_paths = [str(
+                pathlib.PurePath() / "Content" / PLUGIN_SUBPATH
+            )]
         else:
             self.executable_purepath = pathlib.PurePath() / EXECUTABLE_NAME
             self.args = [f"-{arg}" for arg in executable_args]
@@ -35,11 +41,12 @@ class HadesListener:
 
         self.hooks = defaultdict(list)
 
-    def launch(self):
+    def launch(self,echo=True):
         """
         Launch Hades and listen for patterns in self.hooks
         """
-        print(f"Running {self.args[0]} with arguments: {self.args[1:]}")
+        if echo:
+            print(f"Running {self.args[0]} with arguments: {self.args[1:]}")
         self.game = Popen(
             self.args,
             cwd=self.executable_purepath.parent,
@@ -80,3 +87,11 @@ class HadesListener:
             return  # No function specified
 
         self.hooks[pattern].append(target)
+
+    def load_plugins(self):
+        for module_finder, name, _ in pkgutil.iter_modules(self.plugins_paths):
+            print(name)
+            spec = module_finder.find_spec(name)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            print(module)
