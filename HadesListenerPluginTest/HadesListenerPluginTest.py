@@ -1,3 +1,3 @@
 prefix = "TEST"
 def callback( msg, send ):
-    send( "Test:" + msg )
+    send( " Test: " + msg )

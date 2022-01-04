@@ -1,6 +1,11 @@
 ModUtil.Mod.Register("HadesListener")
 
 local hooks = { }
+local print = ModUtil.Print
+local debugCall = ModUtil.DebugCall
+local notify
+
+print( "HadesListener: Lua Refreshed!" )
 
 function HadesListener.AddHook( hook, prefix )
 	if prefix == nil then
@@ -14,50 +19,46 @@ function HadesListener.AddHook( hook, prefix )
 	hooks[ prefix ] = base
 end
 
-local function poll( )
-
-	local valid, msg = pcall( load )
-	if not valid then return print( msg ) end
-	local threaded, delay, file = false, true
-	local thread, wait = thread, wait
-	local loadfile, pcall, setfenv = loadfile, pcall, setfenv
-	local loadOnce, debugCall = ModUtil.LoadOnce, ModUtil.DebugCall
-	
-	local wpoll = function( )
-		while threaded do
-			pcall( wait, delay )
-			if not threaded then return end
-			epoll( )
-		end
+local function startswith( s, p )
+	local i = 1
+	for c in p:gmatch( "." ) do
+		if c ~= s:sub( i, i ) then return end
+		i = i + 1
 	end
-	local bpoll
-	local epoll = function( ) 
-		if not valid and file then
-			valid, msg = pcall( loadfile, file )
-		end
-		return bpoll( )
-	end
-	bpoll = function( )
-		if valid then
-			setfenv( msg, _ENV )
-			file, delay = debugCall( msg, hooks )
-			valid = false
-		end
-		if not delay then
-			threaded = false
-			return epoll( )
-		end
-		if delay == true then
-			threaded = false
-			return loadOnce( epoll )
-		end
-		if not threaded then
-			threaded = true
-			return thread( wpoll )
-		end
-	end
-
-	return bpoll( )
+	return s:sub( i )
 end
 
-return poll( )
+function HadesListener.Notify( ... )
+	for _, message in ipairs( { ... } ) do
+		--print( "HadesListener: Received: " .. message )
+		for prefix, callbacks in pairs( hooks ) do
+			local tail = startswith( message, prefix )
+			if tail then
+				for _, callback in ipairs( callbacks ) do
+					debugCall(callback, tail, function( s ) return print( prefix .. s ) end )
+				end
+			end
+		end
+	end
+end
+notify = HadesListener.Notify
+
+thread( function( )
+	local valid, msg = false
+	local file, delay = "proxy_stdin.txt"
+	while true do
+		if not valid then
+			--print( "HadesListener: Polling...", file )
+			valid, msg = debugCall( loadfile, file )
+		end
+		if valid and msg then
+			valid = false
+			local out  = table.pack( debugCall( msg ) )
+			file, delay = table.unpack( out, 2, 3 )
+			if out.n >= 4 then
+				notify( table.unpack( out, 4, out.n ) )
+			end
+		end
+		debugCall( waitScreenTime, delay )
+	end
+end )

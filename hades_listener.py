@@ -4,9 +4,11 @@ Museus (Discord: Museus#7777)
 """
 from collections import defaultdict
 import os
+import platform
 import pathlib
 import pkgutil
 import importlib.util
+import contextlib
 from subprocess import Popen, PIPE, STDOUT
 
 # Do not include extension
@@ -14,7 +16,11 @@ EXECUTABLE_NAME = "Hades"
 # Do not include leading character (/ or -)
 EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true"]
 PLUGIN_SUBPATH = "HadesListenerPlugins"
-
+LUA_PROXY_STDIN = "proxy_stdin.txt"
+LUA_PROXY_FALSE = "proxy_first.txt"
+LUA_PROXY_TRUE = "proxy_second.txt"
+PROXY_LOADED_PREFIX = "HadesListener: ACK"
+INTERNAL_IGNORE_PREFIX = "HadesListener: "
 
 class HadesListener:
     """
@@ -23,7 +29,7 @@ class HadesListener:
     """
 
     def __init__(self):
-        if os.name == "nt":
+        if platform.system() != "Darwin":
             self.executable_purepath = (
                 pathlib.PurePath() / "x64" / f"{EXECUTABLE_NAME}.exe"
             )
@@ -34,9 +40,17 @@ class HadesListener:
         else:
             self.executable_purepath = pathlib.PurePath() / EXECUTABLE_NAME
             self.args = [f"-{arg}" for arg in executable_args]
+            self.plugins_paths = [str(
+                pathlib.PurePath() / "Contents/Resources/Content" / PLUGIN_SUBPATH
+            )]
 
+        self.proxy_purepaths = {
+            None: self.executable_purepath.parent / LUA_PROXY_STDIN,
+            False: self.executable_purepath.parent / LUA_PROXY_FALSE,
+            True: self.executable_purepath.parent / LUA_PROXY_TRUE
+        }
+        
         self.args.insert(0, self.executable_purepath)
-
         self.hooks = defaultdict(list)
 
     def launch(self,echo=True):
@@ -45,28 +59,63 @@ class HadesListener:
         """
         if echo:
             print(f"Running {self.args[0]} with arguments: {self.args[1:]}")
-        self.game = Popen(
-            self.args,
-            cwd=self.executable_purepath.parent,
-            stdout=PIPE,
-            stderr=STDOUT,
-            universal_newlines=True,
-            encoding="utf8",
-        )
 
-        while self.game.poll() is None:
-            output = self.game.stdout.readline()
-            if not output:
-                break
+        proxy_switch = False
 
-            output = output.strip()
-            if not output.startswith(tuple(self.hooks.keys())):
-                continue
+        def sane(message):
+            return f"[===[{message}]===]"
 
-            for key, hooks in self.hooks.items():
-                if output.startswith(key):
-                    for hook in hooks:
-                        hook(output[len(key):], lambda s: print("would send: " + key + s))
+        def quick_write_file(path, content):
+            with open(path, 'w', encoding="utf8") as file:
+                file.write(content)
+
+        def setup_proxies(swap=False):
+            nonlocal proxy_switch
+            quick_write_file(self.proxy_purepaths[None], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[proxy_switch].name)},0.05")
+            if swap:
+                proxy_switch = not proxy_switch
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(self.proxy_purepaths[not proxy_switch])
+            quick_write_file(self.proxy_purepaths[proxy_switch], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[not proxy_switch].name)},0.05")
+
+        def send(message):
+            with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
+                print(f"In: {message}")
+                file.write(f",{sane(message)}")
+
+        with open("out.txt", 'w', encoding="utf8") as out:
+
+            setup_proxies()
+                
+            game = Popen(
+                self.args,
+                cwd=self.executable_purepath.parent,
+                stdout=PIPE,
+                stderr=STDOUT,
+                universal_newlines=True,
+                encoding="utf8",
+            )
+
+            while game.poll() is None:
+                output = game.stdout.readline()
+                if not output:
+                    break
+                output = output[:-1]
+                if not output.startswith(INTERNAL_IGNORE_PREFIX):
+                    print(f"Out: {output}")
+                    print(output, file=out)
+
+                if output.startswith(PROXY_LOADED_PREFIX):
+                    setup_proxies(True)
+
+                for key, hooks in self.hooks.items():
+                    if output.startswith(key):
+                        for hook in hooks:
+                            hook(output[len(key):], lambda s: send(f"{key}{s}"))
+
+        with contextlib.suppress(FileNotFoundError):
+            for path in self.proxy_purepaths.values():
+                os.remove(path)
 
     def add_hook(self, callback, prefix="", source=None):
         """Add a target function to be called when pattern is detected
