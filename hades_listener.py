@@ -68,9 +68,9 @@ class HadesListener:
             for key, hooks in self.hooks.items():
                 if output.startswith(key):
                     for hook in hooks:
-                        hook(output)
+                        hook(output[len(key):], lambda s: print("would send: " + key + s))
 
-    def add_hook(self, pattern=FILTER_TOKEN, target=None):
+    def add_hook(self, pattern, target, source=None):
         """Add a target function to be called when pattern is detected
 
         Parameters
@@ -83,15 +83,14 @@ class HadesListener:
         if target in self.hooks[pattern]:
             return  # Function already hooked
 
-        if not target:
-            return  # No function specified
-
         self.hooks[pattern].append(target)
+        if source is not None:
+            target = f"{target} from {source}"
+        print(f"Adding hook on \"{pattern}\" with {target}")
 
     def load_plugins(self):
         for module_finder, name, _ in pkgutil.iter_modules(self.plugins_paths):
-            print(name)
             spec = module_finder.find_spec(name)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            print(module)
+            self.add_hook(module.prefix, module.hook, name)
