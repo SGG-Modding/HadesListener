@@ -71,12 +71,12 @@ class HadesListener:
 
         def setup_proxies(swap=False):
             nonlocal proxy_switch
-            quick_write_file(self.proxy_purepaths[None], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[proxy_switch].name)},0.05")
+            quick_write_file(self.proxy_purepaths[None], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[proxy_switch].name)}")
             if swap:
                 proxy_switch = not proxy_switch
             with contextlib.suppress(FileNotFoundError):
                 os.remove(self.proxy_purepaths[not proxy_switch])
-            quick_write_file(self.proxy_purepaths[proxy_switch], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[not proxy_switch].name)},0.05")
+            quick_write_file(self.proxy_purepaths[proxy_switch], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[not proxy_switch].name)}")
 
         def send(message):
             with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:

@@ -1,11 +1,42 @@
 ModUtil.Mod.Register("HadesListener")
 
 local hooks = { }
+local delay = 0.05
 local print = ModUtil.Print
 local debugCall = ModUtil.DebugCall
 local notify
 
 print( "HadesListener: Lua Refreshed!" )
+
+local function startswith( s, p )
+	local i = 1
+	for c in p:gmatch( "." ) do
+		if c ~= s:sub( i, i ) then return end
+		i = i + 1
+	end
+	return s:sub( i )
+end
+
+local function poll( )
+	local valid, msg = false
+	local file = "proxy_stdin.txt"
+	while true do
+		if not valid then
+			--print( "HadesListener: Polling...", file )
+			valid, msg = debugCall( loadfile, file )
+		end
+		if valid and msg then
+			valid = false
+			setfenv( msg, _ENV )
+			local out  = table.pack( debugCall( msg ) )
+			file = table.unpack( out, 2, 2 )
+			if out.n >= 3 then
+				HadesListener.Notify( table.unpack( out, 3, out.n ) )
+			end
+		end
+		debugCall( waitScreenTime, delay )
+	end
+end
 
 function HadesListener.AddHook( hook, prefix )
 	if prefix == nil then
@@ -17,15 +48,6 @@ function HadesListener.AddHook( hook, prefix )
 	local base = hooks[ prefix ] or { }
 	table.insert( base, hook )
 	hooks[ prefix ] = base
-end
-
-local function startswith( s, p )
-	local i = 1
-	for c in p:gmatch( "." ) do
-		if c ~= s:sub( i, i ) then return end
-		i = i + 1
-	end
-	return s:sub( i )
 end
 
 function HadesListener.Notify( ... )
@@ -41,24 +63,7 @@ function HadesListener.Notify( ... )
 		end
 	end
 end
-notify = HadesListener.Notify
 
-thread( function( )
-	local valid, msg = false
-	local file, delay = "proxy_stdin.txt"
-	while true do
-		if not valid then
-			--print( "HadesListener: Polling...", file )
-			valid, msg = debugCall( loadfile, file )
-		end
-		if valid and msg then
-			valid = false
-			local out  = table.pack( debugCall( msg ) )
-			file, delay = table.unpack( out, 2, 3 )
-			if out.n >= 4 then
-				notify( table.unpack( out, 4, out.n ) )
-			end
-		end
-		debugCall( waitScreenTime, delay )
-	end
-end )
+notify = HadesListener.Notify
+thread( poll )
+
