@@ -20,7 +20,7 @@ LUA_PROXY_STDIN = "proxy_stdin.txt"
 LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "HadesListener: ACK"
-INTERNAL_IGNORE_PREFIX = "HadesListener: "
+INTERNAL_IGNORE_PREFIX = PROXY_LOADED_PREFIX
 
 class HadesListener:
     """
@@ -80,7 +80,8 @@ class HadesListener:
 
         def send(message):
             with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
-                print(f"In: {message}")
+                if echo:
+                    print(f"In: {message}")
                 file.write(f",{sane(message)}")
 
         with open("out.txt", 'w', encoding="utf8") as out:
@@ -102,7 +103,8 @@ class HadesListener:
                     break
                 output = output[:-1]
                 if not output.startswith(INTERNAL_IGNORE_PREFIX):
-                    print(f"Out: {output}")
+                    if echo:
+                        print(f"Out: {output}")
                     print(output, file=out)
 
                 if output.startswith(PROXY_LOADED_PREFIX):
