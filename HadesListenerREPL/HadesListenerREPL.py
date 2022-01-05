@@ -1,6 +1,11 @@
 #repurposed from https://stackoverflow.com/questions/2408560/non-blocking-console-input/57387909#57387909
 
 import threading
+import sys
+from traceback import format_exception_only
+
+def exception_string():
+    return "".join(format_exception_only(*(sys.exc_info()[:2])))
 
 class KeyboardThread(threading.Thread):
 
@@ -18,19 +23,19 @@ run = str
 def my_callback(inp):
     #evaluate the keyboard input
     if inp:
-        if inp[:2] == "% ":
+        if inp[:1] == "=":
             try:
-                print(eval(inp[2:], globals(), locals()))
-            except Exception as e:
-                print(e.value)
-        elif inp[:2] == "^ ":
+                print(eval(inp[1:], globals()))
+            except Exception:
+                print(exception_string())
+        elif inp[:1] == ".":
             try:
-                exec(inp[2:], globals(), locals())
-            except Exception as e:
-                print(e.value)
+                exec(inp[1:], globals())
+            except Exception:
+                print(exception_string())
         else:
-            if inp[:2] == "$ ":
-                inp = "return " + inp[2:]
+            if inp[:1] == ";":
+                inp = "return " + inp[1:]
             run(inp)
 
 #start the Keyboard thread
