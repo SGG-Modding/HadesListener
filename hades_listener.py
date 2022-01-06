@@ -95,7 +95,7 @@ class HadesListener:
         def run(out=None):
             setup_proxies()
                 
-            game = Popen(
+            self.game = Popen(
                 self.args,
                 cwd=self.executable_purepath.parent,
                 stdout=PIPE,
@@ -104,8 +104,8 @@ class HadesListener:
                 encoding="utf8",
             )
 
-            while game.poll() is None:
-                output = game.stdout.readline()
+            while self.game.poll() is None:
+                output = self.game.stdout.readline()
                 if not output:
                     break
                 output = output[:-1]
@@ -163,6 +163,6 @@ class HadesListener:
             module.listener = self
             setattr(self.modules, name, module)
             if hasattr(module, "load"):
-                module.load(self)
+                module.load()
             elif hasattr(module, "callback"):
                 self.add_hook(module.callback, getattr(module, "prefix", name + '\t'), name)

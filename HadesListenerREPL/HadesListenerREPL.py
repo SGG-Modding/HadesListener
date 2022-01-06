@@ -2,6 +2,8 @@
 
 import threading
 import sys
+import os
+import signal
 from traceback import format_exception_only
 
 def run_lua(s):
@@ -41,3 +43,7 @@ kthread = KeyboardThread(my_callback)
 prefix = "HadesListenerREPL: "
 def callback(message):
     run_py(message)
+
+def end():
+    listener.game.terminate()
+    os.kill(os.getpid(), signal.SIGTERM)
