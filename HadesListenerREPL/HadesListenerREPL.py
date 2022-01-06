@@ -1,5 +1,9 @@
 #repurposed from https://stackoverflow.com/questions/2408560/non-blocking-console-input/57387909#57387909
 
+_globals = globals().copy()
+_locals = {}
+run = str
+
 import threading
 import sys
 from traceback import format_exception_only
@@ -18,30 +22,26 @@ class KeyboardThread(threading.Thread):
         while True:
             self.input_cbk(input()) #waits to get input + Return
 
-run = str
-
 def my_callback(inp):
     #evaluate the keyboard input
     if inp:
-        if inp[:1] == "=":
+        if inp[:1] == ">":
             try:
-                print(eval(inp[1:], globals()))
+                eval(compile(inp[1:].lstrip(), '<string>', 'single'), _globals, _locals)
             except Exception:
-                print(exception_string())
-        elif inp[:1] == ".":
-            try:
-                exec(inp[1:], globals())
-            except Exception:
-                print(exception_string())
+                print(exception_string(),end='')
         else:
-            if inp[:1] == ";":
-                inp = "return " + inp[1:]
             run(inp)
 
 #start the Keyboard thread
 kthread = KeyboardThread(my_callback)
 
-prefix = "HadesListenerREPL: Awake"
+first = True
+prefix = "HadesListenerREPL: "
 def callback( msg, send ):
     global run
-    run = send
+    global first
+    if first:
+        run = send
+        _globals["run"] = send
+        first = False

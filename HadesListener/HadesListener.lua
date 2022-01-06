@@ -94,4 +94,10 @@ do
 		end
 	end
 	thread( poll )
+	
+	local function poke( )
+		waitScreenTime( 0.01 )
+		return print( "HadesListener: Polling..." )
+	end
+	thread( poke )
 end

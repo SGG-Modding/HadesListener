@@ -104,7 +104,7 @@ class HadesListener:
                 if not output.startswith(INTERNAL_IGNORE_PREFIX):
                     if echo:
                         print(f"Out: {output}")
-                    if log:
+                    if out:
                         print(output, file=out)
 
                 if output.startswith(PROXY_LOADED_PREFIX):
@@ -118,7 +118,7 @@ class HadesListener:
 
         if log:
             with open(log, 'w', encoding="utf8") as out:
-                run()
+                run(out)
         else:
             run()
 
