@@ -1,6 +1,6 @@
 ModUtil.RegisterMod( "HadesListenerREPL" )
 
-HadesListener.AddHook( function( message )
+function HadesListenerREPL.RunLua( message )
 	local func, err = load( "return " .. message )
 	if not func then
 		func, err = load( message )
@@ -9,6 +9,10 @@ HadesListener.AddHook( function( message )
 	local ret = table.pack( pcall( func ) )
 	if ret.n <= 1 then return end
 	return print( table.unpack( ret, 2, ret.n ) )
-end, "HadesListenerREPL: " )
+end
 
-print( "HadesListenerREPL: Awake" )
+function HadesListenerREPL.RunPython( message )
+	print("HadesListenerREPL: " .. message )
+end
+
+HadesListener.AddHook( HadesListenerREPL.RunLua, "HadesListenerREPL: " )

@@ -4,6 +4,7 @@ Museus (Discord: Museus#7777)
 """
 from collections import defaultdict
 import os
+import sys
 import platform
 import pathlib
 import pkgutil
@@ -22,12 +23,16 @@ LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "HadesListener: ACK"
 INTERNAL_IGNORE_PREFIX = PROXY_LOADED_PREFIX
 OUTPUT_FILE = "game_output.log"
+this = sys.modules[__name__]
 
 class HadesListener:
     """
     Used to launch Hades with a wrapper that listens for specified patterns.
     Calls any functions that are added via `add_hook` when patterns are detected.
     """
+
+    class dud(object):
+        pass
 
     def __init__(self):
         if platform.system() != "Darwin":
@@ -53,6 +58,8 @@ class HadesListener:
         
         self.args.insert(0, self.executable_purepath)
         self.hooks = defaultdict(list)
+        self.modules = self.dud()
+        setattr(self.modules, __name__, this)
 
     def launch(self,echo=True,log=OUTPUT_FILE):
         """
@@ -83,6 +90,7 @@ class HadesListener:
                 if echo:
                     print(f"In: {message}")
                 file.write(f",{sane(message)}")
+        self.send = send
 
         def run(out=None):
             setup_proxies()
@@ -112,9 +120,8 @@ class HadesListener:
 
                 for prefix, callbacks in self.hooks.items():
                     if output.startswith(prefix):
-                        sender = lambda s: send(prefix + s)
                         for callback in callbacks:
-                            callback(output[len(prefix):], sender)
+                            callback(output[len(prefix):])
 
         if log:
             with open(log, 'w', encoding="utf8") as out:
@@ -153,7 +160,9 @@ class HadesListener:
             spec = module_finder.find_spec(name)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
+            module.listener = self
+            setattr(self.modules, name, module)
             if hasattr(module, "load"):
                 module.load(self)
-            else:
+            elif hasattr(module, "callback"):
                 self.add_hook(module.callback, getattr(module, "prefix", name + '\t'), name)

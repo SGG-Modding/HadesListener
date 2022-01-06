@@ -1,7 +1,6 @@
 ModUtil.Mod.Register("HadesListener")
 
 local hooks = { }
-local senders = { }
 local delay = 0.25
 local notify
 local print, pcall, loadfile, select, rawipairs, rawpairs, yield = print, pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
@@ -50,7 +49,6 @@ function HadesListener.AddHook( hook, prefix )
 	local base = hooks[ prefix ] or { }
 	table.insert( base, hook )
 	hooks[ prefix ] = base
-	senders[ prefix ] = function( s ) return print( prefix .. s ) end
 end
 
 function HadesListener.Notify( ... )
@@ -59,9 +57,8 @@ function HadesListener.Notify( ... )
 		for prefix, callbacks in rawpairs( hooks ) do
 			local tail = startswith( message, prefix )
 			if tail then
-				local send = senders[ prefix ]
 				for _, callback in rawipairs( callbacks ) do
-					callback( tail, send )
+					callback( tail )
 				end
 			end
 		end

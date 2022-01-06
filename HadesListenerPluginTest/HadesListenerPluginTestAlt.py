@@ -1,1 +1,1 @@
-load = lambda listener: listener.add_hook( lambda msg, send: send( " TestAlt: " + msg ), "TEST", __name__ )
+load = lambda : listener.add_hook( lambda msg: listener.send( "TEST TestAlt: " + msg ), "TEST", __name__ )
