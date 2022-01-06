@@ -41,7 +41,7 @@ def my_callback(inp):
 #start the Keyboard thread
 kthread = KeyboardThread(my_callback)
 
-prefix = "HadesListenerREPL: "
+prefix = "HadesListenerREPL: Awake"
 def callback( msg, send ):
     global run
     run = send
