@@ -1,0 +1,3 @@
+Import "HadesListenerShared.lua"
+To "HadesListenerPlugins/HadesListenerShared.py"
+Replace "HadesListenerShared.py"
