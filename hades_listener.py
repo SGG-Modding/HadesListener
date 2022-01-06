@@ -21,6 +21,7 @@ LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "HadesListener: ACK"
 INTERNAL_IGNORE_PREFIX = PROXY_LOADED_PREFIX
+OUTPUT_FILE = "out.txt"
 
 class HadesListener:
     """
@@ -53,7 +54,7 @@ class HadesListener:
         self.args.insert(0, self.executable_purepath)
         self.hooks = defaultdict(list)
 
-    def launch(self,echo=True):
+    def launch(self,echo=True,log=True):
         """
         Launch Hades and listen for patterns in self.hooks
         """
@@ -69,13 +70,12 @@ class HadesListener:
             with open(path, 'w', encoding="utf8") as file:
                 file.write(content)
 
-        def setup_proxies(swap=False):
+        def setup_proxies():
             nonlocal proxy_switch
             quick_write_file(self.proxy_purepaths[None], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[proxy_switch].name)}")
-            if swap:
-                proxy_switch = not proxy_switch
             with contextlib.suppress(FileNotFoundError):
-                os.remove(self.proxy_purepaths[not proxy_switch])
+                os.remove(self.proxy_purepaths[proxy_switch])
+            proxy_switch = not proxy_switch
             quick_write_file(self.proxy_purepaths[proxy_switch], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[not proxy_switch].name)}")
 
         def send(message):
@@ -84,8 +84,7 @@ class HadesListener:
                     print(f"In: {message}")
                 file.write(f",{sane(message)}")
 
-        with open("out.txt", 'w', encoding="utf8") as out:
-
+        def run(out=None):
             setup_proxies()
                 
             game = Popen(
@@ -105,15 +104,23 @@ class HadesListener:
                 if not output.startswith(INTERNAL_IGNORE_PREFIX):
                     if echo:
                         print(f"Out: {output}")
-                    print(output, file=out)
+                    if log:
+                        print(output, file=out)
 
                 if output.startswith(PROXY_LOADED_PREFIX):
-                    setup_proxies(True)
+                    setup_proxies()
 
-                for key, hooks in self.hooks.items():
-                    if output.startswith(key):
-                        for hook in hooks:
-                            hook(output[len(key):], lambda s: send(f"{key}{s}"))
+                for prefix, callbacks in self.hooks.items():
+                    if output.startswith(prefix):
+                        sender = lambda s: send(prefix + s)
+                        for callback in callbacks:
+                            callback(output[len(prefix):], sender)
+
+        if log:
+            with open(OUTPUT_FILE, 'w', encoding="utf8") as out:
+                run()
+        else:
+            run()
 
         with contextlib.suppress(FileNotFoundError):
             for path in self.proxy_purepaths.values():
@@ -149,4 +156,4 @@ class HadesListener:
             if hasattr(module, "load"):
                 module.load(self)
             else:
-                self.add_hook(module.callback, getattr(module, "prefix", ""), name)
+                self.add_hook(module.callback, getattr(module, "prefix", name + '\t'), name)

@@ -2,9 +2,8 @@ ModUtil.Mod.Register("HadesListener")
 
 local hooks = { }
 local senders = { }
-local delay = 0.05
+local delay = 0.25
 local notify
-local debugCall = ModUtil.DebugCall
 local print, pcall, loadfile, select, rawipairs, rawpairs, yield = print, pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
 
 print( "HadesListener: Lua Refreshed!" )
@@ -60,8 +59,9 @@ function HadesListener.Notify( ... )
 		for prefix, callbacks in rawpairs( hooks ) do
 			local tail = startswith( message, prefix )
 			if tail then
+				local send = senders[ prefix ]
 				for _, callback in rawipairs( callbacks ) do
-					debugCall( callback, tail, senders[ prefix ] )
+					callback( tail, send )
 				end
 			end
 		end
@@ -81,14 +81,15 @@ do
 	
 	local function handle( valid, file, ... )
 		if valid then notify( ... ) end
-		return file
+		return valid, file
 	end
 
 	local function poll( )
 		local file = "proxy_stdin.txt"
 		while true do
-			--print( "HadesListener: Polling...", file )
-			file = handle( pcall( dofile, file ) )
+			--print( "HadesListener: Polling...", file, _screenTime )
+			local valid, nextfile = handle( pcall( dofile, file ) )
+			if valid then file = nextfile end
 			yield( waitArgs )
 		end
 	end
