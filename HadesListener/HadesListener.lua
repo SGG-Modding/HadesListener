@@ -39,16 +39,17 @@ do
 	end
 end
 
-function HadesListener.AddHook( hook, prefix )
-	if prefix == nil then
-		prefix = ""
+function HadesListener.AddHook( callback, prefix, source )
+	if type( source ) ~= "string" then
+		source = ModUtil.Identifiers.Data[ source ]
 	end
 	if type( prefix ) ~= "string" then
-		prefix = ModUtil.Identifiers.Inverse[ prefix ]
+		prefix = source .. ": "
 	end
 	local base = hooks[ prefix ] or { }
-	table.insert( base, hook )
+	table.insert( base, callback )
 	hooks[ prefix ] = base
+	print( "HadesListener: Adding hook on \"" .. prefix .. "\" with " .. tostring( callback ) .. " from " .. source )
 end
 
 function HadesListener.Notify( ... )

@@ -1,4 +1,4 @@
-ModUtil.RegisterMod( "HadesListenerREPL" )
+ModUtil.Mod.Register( "HadesListenerREPL" )
 
 function HadesListenerREPL.RunLua( message )
 	local func, err = load( "return " .. message )
@@ -15,4 +15,4 @@ function HadesListenerREPL.RunPython( message )
 	print("HadesListenerREPL: " .. message )
 end
 
-HadesListener.AddHook( HadesListenerREPL.RunLua, "HadesListenerREPL: " )
+HadesListener.AddHook( HadesListenerREPL.RunLua, "HadesListenerREPL: ", HadesListenerREPL )
