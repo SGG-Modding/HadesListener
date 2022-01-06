@@ -41,8 +41,9 @@ def my_callback(inp):
 kthread = KeyboardThread(my_callback)
 
 prefix = "HadesListenerREPL: "
-def callback(message):
-    run_py(message)
+def load():
+    listener.add_hook(run_py, prefix, __name__)
+    listener.ignore_prefixes.append(prefix)
 
 def end():
     listener.game.terminate()

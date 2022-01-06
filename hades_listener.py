@@ -21,7 +21,7 @@ LUA_PROXY_STDIN = "proxy_stdin.txt"
 LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "HadesListener: ACK"
-INTERNAL_IGNORE_PREFIX = PROXY_LOADED_PREFIX
+INTERNAL_IGNORE_PREFIXES = (PROXY_LOADED_PREFIX,)
 OUTPUT_FILE = "game_output.log"
 this = sys.modules[__name__]
 
@@ -60,6 +60,7 @@ class HadesListener:
         self.hooks = defaultdict(list)
         self.modules = self.dud()
         setattr(self.modules, __name__, this)
+        self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
 
     def launch(self,echo=True,log=OUTPUT_FILE):
         """
@@ -87,7 +88,7 @@ class HadesListener:
 
         def send(message):
             with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
-                if echo:
+                if echo and not message.startswith(tuple(self.ignore_prefixes)):
                     print(f"In: {message}")
                 file.write(f",{sane(message)}")
         self.send = send
@@ -109,7 +110,7 @@ class HadesListener:
                 if not output:
                     break
                 output = output[:-1]
-                if not output.startswith(INTERNAL_IGNORE_PREFIX):
+                if not output.startswith(tuple(self.ignore_prefixes)):
                     if echo:
                         print(f"Out: {output}")
                     if out:
