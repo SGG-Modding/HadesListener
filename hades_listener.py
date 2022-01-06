@@ -14,14 +14,14 @@ from subprocess import Popen, PIPE, STDOUT
 # Do not include extension
 EXECUTABLE_NAME = "Hades"
 # Do not include leading character (/ or -)
-EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true"]
+EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true", "RequireFocusToUpdate=false"]
 PLUGIN_SUBPATH = "HadesListenerPlugins"
 LUA_PROXY_STDIN = "proxy_stdin.txt"
 LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "HadesListener: ACK"
 INTERNAL_IGNORE_PREFIX = PROXY_LOADED_PREFIX
-OUTPUT_FILE = "out.txt"
+OUTPUT_FILE = "game_output.log"
 
 class HadesListener:
     """
@@ -54,7 +54,7 @@ class HadesListener:
         self.args.insert(0, self.executable_purepath)
         self.hooks = defaultdict(list)
 
-    def launch(self,echo=True,log=True):
+    def launch(self,echo=True,log=OUTPUT_FILE):
         """
         Launch Hades and listen for patterns in self.hooks
         """
@@ -117,7 +117,7 @@ class HadesListener:
                             callback(output[len(prefix):], sender)
 
         if log:
-            with open(OUTPUT_FILE, 'w', encoding="utf8") as out:
+            with open(log, 'w', encoding="utf8") as out:
                 run()
         else:
             run()
