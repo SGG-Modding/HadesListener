@@ -83,7 +83,7 @@ Turns the output console into a lua and python REPL
 to use the python REPL, prefix your message with `>`
 ```
 >(1,2)
-(1,2)
+(1, 2)
 ```
 in the python REPL you can access all the modules via `listener.modules`    
 >   example:    `listener.modules.hades_listener`     
