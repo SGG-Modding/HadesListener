@@ -98,6 +98,8 @@ Out: 1  2
 in the lua REPL you can access all the mods by their global namespace
 >   example:    `ModUtil`     
 
+To immediately exit both the game and terminal, type `>end()`
+
 ### Shared State
 
 Adds some shared state between the python and the game's lua in the form of a new type of object that communicates implicitly.
