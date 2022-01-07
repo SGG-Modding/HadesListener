@@ -5,8 +5,8 @@ The input is queued up until it's read by by the game at a certain interval, but
 
 For example plugins look at the [REPL](Content/Mods/HadesListenerREPL) or the [shared state](Content/Mods/HadesListenerShared)
 
-* Requires [modimporter](sgg-mod-modimporter) to install the plugins.
-* Requires [ModUtil](sgg-mod-modutil) to run the lua side
+* Requires [modimporter](https://github.com/SGG-Modding/sgg-mod-modimporter) to install the plugins.
+* Requires [ModUtil](https://github.com/SGG-Modding/sgg-mod-modutil) to run the lua side
 
 ## Instructions
 
@@ -18,7 +18,7 @@ For example plugins look at the [REPL](Content/Mods/HadesListenerREPL) or the [s
 
 ## Plugins
 
-Plugins are in the [importable format](sgg-mod-format).  
+Plugins are in the [importable format](https://github.com/SGG-Modding/sgg-mod-format).  
 
 To add a lua script to be loaded add
 ```
@@ -75,6 +75,8 @@ def load( ):
         listener.send( prefix + message )
     listener.add_hook( callback, prefix, __name__ )
 ```
+
+You can access all the loaded modules from `listener.modules`
 
 ### REPL
 
