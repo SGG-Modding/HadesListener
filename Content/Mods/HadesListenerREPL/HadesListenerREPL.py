@@ -3,6 +3,7 @@
 import threading
 import sys
 import os
+import contextlib
 import signal
 from traceback import format_exception_only
 
@@ -10,8 +11,15 @@ def run_lua(s):
     listener.send(prefix + s)
 
 def run_py(s):
+    s = s.lstrip()
     try:
-        eval(compile(s.lstrip(), '<string>', 'single'), globals())
+        try:
+            eval(compile(s, '<string>', 'single'), globals())
+        except SyntaxError as e:
+            if e.args[0] == "unexpected EOF while parsing":
+                eval(compile(s, '<string>', 'exec'), globals())
+            else:
+                raise SyntaxError from e
     except Exception:
         print(exception_string(),end='')
 
@@ -46,5 +54,11 @@ def load():
     listener.ignore_prefixes.append(prefix)
 
 def end():
-    listener.game.terminate()
+    try:
+        listener.game.terminate()
+    except:
+        pass
+    with contextlib.suppress(FileNotFoundError):
+        for path in listener.proxy_purepaths.values():
+            os.remove(path)
     os.kill(os.getpid(), signal.SIGTERM)
