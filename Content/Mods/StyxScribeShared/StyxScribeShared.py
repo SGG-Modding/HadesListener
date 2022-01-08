@@ -84,9 +84,9 @@ def handle_set(message):
     v = decode(v)
     s = super(Shared, registry[-int(i)])
     if v is None:
-        del s[k]
+        s.__delitem__(k)
     else:
-        s[k] = v
+        s.__setitem__(k, v)
 
 def handle_reset(message):
     global registry
