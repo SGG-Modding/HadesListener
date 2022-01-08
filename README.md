@@ -14,7 +14,7 @@ For example plugins look at the [REPL](Content/Mods/StyxScribeREPL) or the [shar
 * (if on mac move the `Content` folder to `Contents/Resources/Content`)  
 * run `modimporter` in the `Content` folder 
 * run `subsume_hades.py` or `subsume_pyre.py` to run the game with the scribe attached
-* load a save so the lua begins `Polling...`
+* load a save in Hades (or merely let the main menu open in Pyre), so the lua begins `Polling...`
 
 ## Plugins
 
