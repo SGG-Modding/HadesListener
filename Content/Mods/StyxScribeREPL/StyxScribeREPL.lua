@@ -8,7 +8,7 @@ function StyxScribeREPL.RunLua( message )
 	end
 	local ret = table.pack( pcall( func ) )
 	if ret.n <= 1 then return end
-	return print( table.unpack( ret, 2, ret.n ) )
+	return ModUtil.Print( ModUtil.Args.Map( ModUtil.ToString.Value, table.unpack( ret, 2, ret.n ) ) )
 end
 
 function StyxScribeREPL.RunPython( message )
