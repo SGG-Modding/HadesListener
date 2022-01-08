@@ -5,7 +5,7 @@ registry = None
 lookup = None
 
 def not_implemented(*args, **kwargs):
-    raise NotImplemented("Cannot used shared object this way.")
+    raise NotImplementedError("Cannot used shared object this way.")
 
 class Shared(dict):
     def __call__(self):
