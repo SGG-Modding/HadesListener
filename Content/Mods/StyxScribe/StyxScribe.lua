@@ -1,11 +1,11 @@
-ModUtil.Mod.Register("HadesListener")
+ModUtil.Mod.Register("StyxScribe")
 
 local hooks = { }
 local delay = 0.25
 local notify
 local print, pcall, loadfile, select, rawipairs, rawpairs, yield = print, pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
 
-print( "HadesListener: Lua Refreshed!" )
+print( "StyxScribe: Lua Refreshed!" )
 
 local function startswith( s, p )
 	local i = 1
@@ -39,7 +39,7 @@ do
 	end
 end
 
-function HadesListener.AddHook( callback, prefix, source )
+function StyxScribe.AddHook( callback, prefix, source )
 	if source ~= nil then
 		if type( source ) ~= "string" then
 			source = ModUtil.Identifiers.Data[ source ]
@@ -51,12 +51,12 @@ function HadesListener.AddHook( callback, prefix, source )
 	local base = hooks[ prefix ] or { }
 	table.insert( base, callback )
 	hooks[ prefix ] = base
-	print( "HadesListener: Adding hook on \"" .. prefix .. "\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
+	print( "StyxScribe: Adding hook on \"" .. prefix .. "\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
 end
 
-function HadesListener.Notify( ... )
+function StyxScribe.Notify( ... )
 	for _, message in vararg( ... ) do
-		--print( "HadesListener: Received: " .. message )
+		--print( "StyxScribe: Received: " .. message )
 		for prefix, callbacks in rawpairs( hooks ) do
 			local tail = startswith( message, prefix )
 			if tail then
@@ -68,7 +68,7 @@ function HadesListener.Notify( ... )
 	end
 end
 
-notify = HadesListener.Notify
+notify = StyxScribe.Notify
 
 do
 	local waitArgs = setmetatable({ screenTime = true }, {
@@ -87,7 +87,7 @@ do
 	local function poll( )
 		local file = "proxy_stdin.txt"
 		while true do
-			--print( "HadesListener: Polling...", file, _screenTime )
+			--print( "StyxScribe: Polling...", file, _screenTime )
 			local valid, nextfile = handle( pcall( dofile, file ) )
 			if valid then file = nextfile end
 			yield( waitArgs )
@@ -97,7 +97,7 @@ do
 	
 	local function poke( )
 		waitScreenTime( 0.01 )
-		return print( "HadesListener: Polling..." )
+		return print( "StyxScribe: Polling..." )
 	end
 	thread( poke )
 end

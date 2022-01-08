@@ -1,4 +1,4 @@
-ModUtil.Mod.Register( "HadesListenerShared" )
+ModUtil.Mod.Register( "StyxScribeShared" )
 
 local registry
 local lookup
@@ -16,7 +16,7 @@ local meta = {
 		local K = encode( k )
 		local V = encode( v )
 		objectData[ s ][ k ] = v
-		print( "HadesListenerShared: Set: " .. I .. '¦' .. K .. '¦' .. V )
+		print( "StyxScribeShared: Set: " .. I .. '¦' .. K .. '¦' .. V )
 	end,
 	__index = function( s, k )
 		return objectData[ s ][ k ]
@@ -45,7 +45,7 @@ function new( id )
 	registry[ id ] = s
 	lookup[ s ] = id
 	if id > 0 then
-		print( "HadesListenerShared: New: " .. id )
+		print( "StyxScribeShared: New: " .. id )
 	end
 	return s
 end
@@ -106,14 +106,14 @@ local function handleReset( )
 	registry = { }
 	lookup = setmetatable( { }, { __mode = "k" } )
 	objectData = setmetatable( { }, { __mode = "k" } )
-	HadesListener.Shared = new( 0 )
-	print( "HadesListenerShared: Reset" )
+	StyxScribe.Shared = new( 0 )
+	print( "StyxScribeShared: Reset" )
 end
 
-HadesListenerShared.Internal = ModUtil.UpValues( function( )
+StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, objectData, getObjectData, handleNew, handleSet, handleReset, decode, encode
 end )
 
 handleReset( )
-HadesListener.AddHook( handleNew, "HadesListenerShared: New: ", HadesListenerShared )
-HadesListener.AddHook( handleSet, "HadesListenerShared: Set: ", HadesListenerShared )
+StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
+StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )

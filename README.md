@@ -1,19 +1,19 @@
-# HadesListener
-Allows plugins to hook into Hades and listen for output and to send input in.
+# StyxScribe
+Allows plugins to hook into Hades or Pyre and listen for output and to send input in.
 
 The input is queued up until it's read by by the game at a certain interval, but the output is instantly captured.
 
-For example plugins look at the [REPL](Content/Mods/HadesListenerREPL) or the [shared state](Content/Mods/HadesListenerShared)
+For example plugins look at the [REPL](Content/Mods/StyxScribeREPL) or the [shared state](Content/Mods/StyxScribeShared)
 
 * Requires [modimporter](https://github.com/SGG-Modding/sgg-mod-modimporter) to install the plugins.
 * Requires [ModUtil](https://github.com/SGG-Modding/sgg-mod-modutil) to run the lua side
 
 ## Instructions
 
-* place this repo's contents directly into your Hades folder    
+* place this repo's contents directly into your Hades or Pyre folder    
 * (if on mac move the `Content` folder to `Contents/Resources/Content`)  
 * run `modimporter` in the `Content` folder 
-* run `subsume.py` to run the game with the listener attached
+* run `subsume_hades.py` or `subsume_pyre.py` to run the game with the scribe attached
 * load a save so the lua begins `Polling...`
 
 ## Plugins
@@ -26,7 +26,7 @@ Import "myscript.lua"
 ```
 to the start of your `modfile.txt`
 
-The lua script can interface with the `HadesListener` global to hook into when messages get sent into the game:
+The lua script can interface with the `StyxScribe` global to hook into when messages get sent into the game:
 ```lua
 ModUtil.Mod.Register("MyMod")
 
@@ -41,17 +41,17 @@ local function callback( message )
 end
 
 -- listen for messages that start with a given prefix
-HadesListener.AddHook( callback, prefix, MyMod )
+StyxScribe.AddHook( callback, prefix, MyMod )
 ```
 
-To add a python script to be loaded by the listener add
+To add a python script to be loaded by the scribe add
 ```
-To "HadesListenerPlugins/myscript.py"
+To "StyxScribeScripts/myscript.py"
 Replace "myscript.py"
 ```
 to the end of your `modfile.txt`
 
-The python script (inside the `load` or `callback` global function) can interface with the `listener` global:
+The python script (inside the `load` or `callback` global function) can interface with the `scribe` global:
 ```py
 # prefix for communicating over a channel
 prefix = "MyMod: Message: "
@@ -60,7 +60,7 @@ def callback( message ):
     # the message will have the prefix removed already
 
     # example: sending back the same message
-    listener.send( prefix + message )
+    scribe.send( prefix + message )
 ```
 or
 ```py
@@ -72,11 +72,11 @@ def load( ):
         # the message will have the prefix removed already
 
         # example: sending back the same message
-        listener.send( prefix + message )
-    listener.add_hook( callback, prefix, __name__ )
+        scribe.send( prefix + message )
+    scribe.add_hook( callback, prefix, __name__ )
 ```
 
-You can access all the loaded modules from `listener.modules`
+You can access all the loaded modules from `scribe.modules`
 
 ### REPL
 
@@ -87,8 +87,8 @@ to use the python REPL, prefix your message with `>`
 >(1,2)
 (1, 2)
 ```
-in the python REPL you can access all the modules via `listener.modules`    
->   example:    `listener.modules.hades_listener`     
+in the python REPL you can access all the modules via `scribe.modules`    
+>   example:    `scribe.modules.hades_scribe`     
 
 you can send code to be executed lua side using the function `run_lua`
 
@@ -106,32 +106,32 @@ To immediately exit both the game and terminal, type `>end()`
 
 Adds some shared state between the python and the game's lua in the form of a new type of object that communicates implicitly.
 
-* Lua: `HadesListener.Shared`
-* Python: `listener.shared`
+* Lua: `StyxScribe.Shared`
+* Python: `scribe.shared`
 
 using the [REPL](#REPL) to demonstrate:
 ```
-HadesListener.Shared.Health = CurrentRun.Hero.Health
+StyxScribe.Shared.Health = CurrentRun.Hero.Health
 CurrentRun.Hero.Health
 Out: 100
->listener.shared["Health"] += 15
-HadesListener.Shared.Health
+>scribe.shared["Health"] += 15
+StyxScribe.Shared.Health
 Out: 115
 ```
 
 you can create new shared objects:
 
 ```
->listener.shared
+>scribe.shared
 {}
-ModUtil.ToString.Deep( HadesListener.Shared )
+ModUtil.ToString.Deep( StyxScribe.Shared )
 Out: <table:1E0AB8E2750>( )
->listener.shared["A"] = listener.shared()
->listener.shared
+>scribe.shared["A"] = scribe.shared()
+>scribe.shared
 {'A': {}}
-ModUtil.ToString.Deep( HadesListener.Shared )
+ModUtil.ToString.Deep( StyxScribe.Shared )
 Out: <table:1E0AB8E2750>( A = <table:1E13A479AA0>(  ) )
-HadesListener.Shared.A.B = HadesListener.Shared( )
->listener.shared
+StyxScribe.Shared.A.B = StyxScribe.Shared( )
+>scribe.shared
 {'A': {'B': {}}}
 ```

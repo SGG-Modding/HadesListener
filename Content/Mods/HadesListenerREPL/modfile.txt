@@ -1,3 +1,0 @@
-Import "HadesListenerREPL.lua"
-To "HadesListenerPlugins/HadesListenerREPL.py"
-Replace "HadesListenerREPL.py"

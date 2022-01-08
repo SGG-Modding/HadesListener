@@ -1,6 +1,6 @@
-ModUtil.Mod.Register( "HadesListenerREPL" )
+ModUtil.Mod.Register( "StyxScribeREPL" )
 
-function HadesListenerREPL.RunLua( message )
+function StyxScribeREPL.RunLua( message )
 	local func, err = load( "return " .. message )
 	if not func then
 		func, err = load( message )
@@ -11,8 +11,8 @@ function HadesListenerREPL.RunLua( message )
 	return print( table.unpack( ret, 2, ret.n ) )
 end
 
-function HadesListenerREPL.RunPython( message )
-	print("HadesListenerREPL: " .. message )
+function StyxScribeREPL.RunPython( message )
+	print("StyxScribeREPL: " .. message )
 end
 
-HadesListener.AddHook( HadesListenerREPL.RunLua, "HadesListenerREPL: ", HadesListenerREPL )
+StyxScribe.AddHook( StyxScribeREPL.RunLua, "StyxScribeREPL: ", StyxScribeREPL )

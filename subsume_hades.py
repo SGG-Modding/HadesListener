@@ -1,5 +1,5 @@
-from hades_listener import HadesListener
+from styxscribe import StyxScribe
 
-subsume = HadesListener("Hades")
+subsume = StyxScribe("Hades")
 subsume.load_plugins()
 subsume.launch()

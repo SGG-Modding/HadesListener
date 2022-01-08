@@ -8,7 +8,7 @@ import signal
 from traceback import format_exception_only
 
 def run_lua(s):
-    listener.send(prefix + s)
+    scribe.send(prefix + s)
 
 def run_py(s):
     s = s.lstrip()
@@ -48,17 +48,17 @@ def my_callback(inp):
 #start the Keyboard thread
 kthread = KeyboardThread(my_callback)
 
-prefix = "HadesListenerREPL: "
+prefix = "StyxScribeREPL: "
 def load():
-    listener.add_hook(run_py, prefix, __name__)
-    listener.ignore_prefixes.append(prefix)
+    scribe.add_hook(run_py, prefix, __name__)
+    scribe.ignore_prefixes.append(prefix)
 
 def end():
     try:
-        listener.game.terminate()
+        scribe.game.terminate()
     except:
         pass
     with contextlib.suppress(FileNotFoundError):
-        for path in listener.proxy_purepaths.values():
+        for path in scribe.proxy_purepaths.values():
             os.remove(path)
     os.kill(os.getpid(), signal.SIGTERM)

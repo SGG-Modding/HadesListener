@@ -1,0 +1,3 @@
+Import "StyxScribeShared.lua"
+To "StyxScribeScripts/StyxScribeShared.py"
+Replace "StyxScribeShared.py"

@@ -16,17 +16,17 @@ from subprocess import Popen, PIPE, STDOUT
 EXECUTABLE_NAMES = { "hades" : "Hades", "pyre": "Pyre" }
 # Do not include leading character (/ or -)
 EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true", "RequireFocusToUpdate=false"]
-PLUGIN_SUBPATH = "HadesListenerPlugins"
+PLUGIN_SUBPATH = "StyxScribeScripts"
 LUA_PROXY_STDIN = "proxy_stdin.txt"
 LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
-PROXY_LOADED_PREFIX = "HadesListener: ACK"
+PROXY_LOADED_PREFIX = "StyxScribe: ACK"
 INTERNAL_IGNORE_PREFIXES = (PROXY_LOADED_PREFIX,)
 OUTPUT_FILE = "game_output.log" 
 
-class HadesListener:
+class StyxScribe:
     """
-    Used to launch Hades with a wrapper that listens for specified patterns.
+    Used to launch the game with a wrapper that listens for specified patterns.
     Calls any functions that are added via `add_hook` when patterns are detected.
     """
 
@@ -75,7 +75,7 @@ class HadesListener:
 
     def launch(self,echo=True,log=OUTPUT_FILE):
         """
-        Launch Hades and listen for patterns in self.hooks
+        Launch the game and listen for patterns in self.hooks
         """
         if echo:
             print(f"Running {self.args[0]} with arguments: {self.args[1:]}")
@@ -174,7 +174,7 @@ class HadesListener:
             spec = module_finder.find_spec(name)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            module.listener = self
+            module.scribe = self
             self.modules[name] =  module
             if hasattr(module, "load"):
                 module.load()

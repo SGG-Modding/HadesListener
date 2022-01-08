@@ -18,7 +18,7 @@ class Shared(dict):
         registry[i] = self
         lookup[self] = i
         if i > 0:
-            listener.send("HadesListenerShared: New: " + str(i))
+            scribe.send("StyxScribeShared: New: " + str(i))
     def __setitem__(self, key, val):
         if val is None:
             return self.__delitem__(key)
@@ -28,13 +28,13 @@ class Shared(dict):
         k = encode(key)
         v = encode(val)
         super(__class__, self).__setitem__(key, val)
-        listener.send("HadesListenerShared: Set: " + i + '¦' + k + '¦' + v)
+        scribe.send("StyxScribeShared: Set: " + i + '¦' + k + '¦' + v)
     def __delitem__(self, key):
         i = str(lookup[self])
         k = encode(key)
         v = encode(None)
         super(__class__, self).__delitem__(key)
-        listener.send("HadesListenerShared: Set: " + i + '¦' + k + '¦' + v)
+        scribe.send("StyxScribeShared: Set: " + i + '¦' + k + '¦' + v)
     def __getitem__(self, key):
         try:
             return super(__class__, self).__getitem__(key)
@@ -84,9 +84,9 @@ def handle_set(message):
     v = decode(v)
     s = super(Shared, registry[-int(i)])
     if v is None:
-        s.__delitem__(k)
+        del s[k]
     else:
-        s.__setitem__(k, v)
+        s[k] = v
 
 def handle_reset(message):
     global registry
@@ -94,10 +94,10 @@ def handle_reset(message):
     global obj_data
     registry = {}
     lookup = WeakKeyDictionary()
-    listener.shared = Shared(0)
+    scribe.shared = Shared(0)
 
 def load():
-    listener.add_hook(handle_reset, "HadesListenerShared: Reset", __name__)
-    listener.add_hook(handle_new, "HadesListenerShared: New: ", __name__)
-    listener.add_hook(handle_set, "HadesListenerShared: Set: ", __name__)
-    listener.ignore_prefixes.append("HadesListenerShared:")
+    scribe.add_hook(handle_reset, "StyxScribeShared: Reset", __name__)
+    scribe.add_hook(handle_new, "StyxScribeShared: New: ", __name__)
+    scribe.add_hook(handle_set, "StyxScribeShared: Set: ", __name__)
+    scribe.ignore_prefixes.append("StyxScribeShared:")

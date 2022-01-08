@@ -1,0 +1,3 @@
+Import "StyxScribeREPL.lua"
+To "StyxScribeScripts/StyxScribeREPL.py"
+Replace "StyxScribeREPL.py"
