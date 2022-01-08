@@ -140,4 +140,4 @@ StyxScribe.Shared.A.B = StyxScribe.Shared( )
 
 [<img src="https://cdn.cloudflare.steamstatic.com/steam/apps/1145360/header.jpg?t=1624463563" width="50%">](https://cdn.discordapp.com/attachments/770267934231625728/929358733514006548/2022-01-08_23-55-58.mp4)
 
-[<img src="https://cdn.cloudflare.steamstatic.com/steam/apps/462770/header.jpg?t=1601500944" width="50%">](https://discord.com/channels/450560886445178895/770267934231625728/929358734860353567)
+[<img src="https://cdn.cloudflare.steamstatic.com/steam/apps/462770/header.jpg?t=1601500944" width="50%">](https://cdn.discordapp.com/attachments/770267934231625728/929358732322799626/2022-01-08_23-50-38.mp4)
