@@ -88,7 +88,7 @@ to use the python REPL, prefix your message with `>`
 (1, 2)
 ```
 in the python REPL you can access all the modules via `scribe.modules`    
->   example:    `scribe.modules.hades_scribe`     
+>   example:    `scribe.modules.StyxScribeShared`     
 
 you can send code to be executed lua side using the function `run_lua`
 
