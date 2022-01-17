@@ -125,12 +125,12 @@ you can create new shared objects:
 >scribe.shared
 {}
 ModUtil.ToString.Deep( StyxScribe.Shared )
-Out: <table:1E0AB8E2750>( )
+Out: "<table:1E0AB8E2750>( )"
 >scribe.shared["A"] = scribe.shared()
 >scribe.shared
 {'A': {}}
 ModUtil.ToString.Deep( StyxScribe.Shared )
-Out: <table:1E0AB8E2750>( A = <table:1E13A479AA0>(  ) )
+Out: "<table:1E0AB8E2750>( A = <table:1E13A479AA0>(  ) )"
 StyxScribe.Shared.A.B = StyxScribe.Shared( )
 >scribe.shared
 {'A': {'B': {}}}
