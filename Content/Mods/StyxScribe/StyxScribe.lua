@@ -101,3 +101,17 @@ do
 	end
 	thread( poke )
 end
+
+if DebugAssert then
+	ModUtil.Path.Wrap( "DebugAssert", function( base, args )
+		if not args.Condition then print( "DebugAssert: " .. args.Text ) end
+		return base( args )
+	end, StyxScribe )
+end
+
+if DebugPrint then
+	ModUtil.Path.Wrap( "DebugPrint", function( base, args )
+		print( "DebugPrint: " .. args.Text )
+		return base( args )
+	end, StyxScribe )
+end

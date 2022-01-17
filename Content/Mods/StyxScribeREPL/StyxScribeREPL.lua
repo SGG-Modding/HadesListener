@@ -25,7 +25,7 @@ function StyxScribeREPL.RunLua( message )
 	setfenv( func, StyxScribeREPL.Environment )
 	local ret = table.pack( pcall( func ) )
 	if ret.n <= 1 then return end
-	return ModUtil.Print( ModUtil.Args.Map( ModUtil.ToString.Value, table.unpack( ret, 2, ret.n ) ) )
+	return print( ModUtil.Args.Map( ModUtil.ToString.Value, table.unpack( ret, 2, ret.n ) ) )
 end
 
 function StyxScribeREPL.RunPython( message )
