@@ -10,6 +10,7 @@ import pathlib
 import pkgutil
 import importlib.util
 import contextlib
+import signal
 from subprocess import Popen, PIPE, STDOUT
 
 # Do not include extension
@@ -73,7 +74,7 @@ class StyxScribe:
         self.modules[__name__] = sys.modules[__name__]
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
 
-    def close(self, abort=False):
+    def close(self, abort=True):
         try:
             self.game.terminate()
         except:
@@ -157,9 +158,7 @@ class StyxScribe:
         else:
             run()
 
-        with contextlib.suppress(FileNotFoundError):
-            for path in self.proxy_purepaths.values():
-                os.remove(path)
+        self.close()
 
     def add_hook(self, callback, prefix="", source=None):
         """Add a target function to be called when pattern is detected
