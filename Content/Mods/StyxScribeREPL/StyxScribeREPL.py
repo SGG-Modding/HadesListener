@@ -36,10 +36,9 @@ class KeyboardThread(threading.Thread):
     def run(self):
         try:
             while True:
-                try:
-                    self.input_cbk(input()) #waits to get input + Return
-                except EOFError:
-                    pass
+                self.input_cbk(input()) #waits to get input + Return
+        except EOFError:
+            end()
         except KeyboardInterrupt:
             end()
 
