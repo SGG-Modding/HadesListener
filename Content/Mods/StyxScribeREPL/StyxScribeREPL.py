@@ -34,8 +34,11 @@ class KeyboardThread(threading.Thread):
         self.start()
 
     def run(self):
-        while True:
-            self.input_cbk(input()) #waits to get input + Return
+        try:
+            while True:
+                self.input_cbk(input()) #waits to get input + Return
+        except KeyboardInterrupt:
+            end()
 
 def my_callback(inp):
     #evaluate the keyboard input
@@ -54,11 +57,4 @@ def load():
     scribe.ignore_prefixes.append(prefix)
 
 def end():
-    try:
-        scribe.game.terminate()
-    except:
-        pass
-    with contextlib.suppress(FileNotFoundError):
-        for path in scribe.proxy_purepaths.values():
-            os.remove(path)
-    os.kill(os.getpid(), signal.SIGTERM)
+    scribe.close(True)

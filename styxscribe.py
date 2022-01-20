@@ -73,6 +73,17 @@ class StyxScribe:
         self.modules[__name__] = sys.modules[__name__]
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
 
+    def close(self, abort=False):
+        try:
+            self.game.terminate()
+        except:
+            pass
+        with contextlib.suppress(FileNotFoundError):
+            for path in self.proxy_purepaths.values():
+                os.remove(path)
+        if abort:
+            os.kill(os.getpid(), signal.SIGTERM)
+
     def launch(self,echo=True,log=OUTPUT_FILE):
         """
         Launch the game and listen for patterns in self.hooks
@@ -117,25 +128,28 @@ class StyxScribe:
                 encoding="utf8",
             )
 
-            while self.game.poll() is None:
-                output = self.game.stdout.readline()
-                if not output:
-                    break
-                output = output[:-1]
-                if not output.startswith(tuple(self.ignore_prefixes)):
-                    if echo:
-                        print(f"Out: {output}")
-                    if out:
-                        print(output, file=out)
-                        out.flush()
+            try:
+                while self.game.poll() is None:
+                    output = self.game.stdout.readline()
+                    if not output:
+                        break
+                    output = output[:-1]
+                    if not output.startswith(tuple(self.ignore_prefixes)):
+                        if echo:
+                            print(f"Out: {output}")
+                        if out:
+                            print(output, file=out)
+                            out.flush()
 
-                if output.startswith(PROXY_LOADED_PREFIX):
-                    setup_proxies()
+                    if output.startswith(PROXY_LOADED_PREFIX):
+                        setup_proxies()
 
-                for prefix, callbacks in self.hooks.items():
-                    if output.startswith(prefix):
-                        for callback in callbacks:
-                            callback(output[len(prefix):])
+                    for prefix, callbacks in self.hooks.items():
+                        if output.startswith(prefix):
+                            for callback in callbacks:
+                                callback(output[len(prefix):])
+            except KeyboardInterrupt:
+                self.close()
 
         if log:
             with open(log, 'w', encoding="utf8") as out:
