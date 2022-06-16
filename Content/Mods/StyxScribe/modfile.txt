@@ -1,1 +1,2 @@
+Load Priority 0
 Import "StyxScribe.lua"
