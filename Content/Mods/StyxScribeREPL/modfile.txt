@@ -1,3 +1,4 @@
+Load Priority 0
 Import "StyxScribeREPL.lua"
 To "StyxScribeScripts/StyxScribeREPL.py"
 Replace "StyxScribeREPL.py"
