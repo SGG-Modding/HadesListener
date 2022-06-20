@@ -83,6 +83,9 @@ class StyxScribe:
         self.modules = self.Modules()
         self.modules[__name__] = sys.modules[__name__]
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
+        
+        self.queue = None
+        self.loop = None
 
     def close(self, abort=True):
         try:
@@ -120,13 +123,24 @@ class StyxScribe:
             proxy_switch = not proxy_switch
             quick_write_file(self.proxy_purepaths[proxy_switch], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[not proxy_switch].name)}")
 
-        def send(message):
-            with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
-                if echo and not message.startswith(tuple(self.ignore_prefixes)):
-                    print(f"In: {message}")
-                file.write(f",{sane(message)}")
-                file.flush()
-        self.send = send
+        async def send_loop():
+            #https://gist.github.com/tomschr/39734f0151a14187fd8f4844f66be6ba#file-asyncio-producer-consumer-task_done-py-L22
+            while True:
+                message = await self.queue.get()
+
+                with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
+                    if echo and not message.startswith(tuple(self.ignore_prefixes)):
+                        print(f"In: {message}")
+                    file.write(f",{sane(message)}")
+                    file.flush()
+
+                self.queue.task_done()
+
+        async def send(message):
+            await self.queue.put(message)
+            await self.queue.join()
+
+        self.send = lambda msg: asyncio.run_coroutine_threadsafe(send(msg),self.loop)
 
         @make_sync
         async def run(out=None):
@@ -138,6 +152,10 @@ class StyxScribe:
                 stdout=PIPE,
                 stderr=STDOUT
             )
+
+            self.loop = asyncio.get_event_loop()
+            self.queue = asyncio.Queue()
+            sender = asyncio.ensure_future(send_loop())
 
             try:
                 while self.game.returncode is None:
@@ -160,7 +178,10 @@ class StyxScribe:
                             for callback in callbacks:
                                 callback(output[len(prefix):])
             except KeyboardInterrupt:
-                self.close()
+                pass
+
+            sender.cancel()
+            self.queue = None
             self.close()
 
         if log:
