@@ -2,7 +2,7 @@
 Magic_Gonads (Discord: Magic_Gonads#7347)
 Museus (Discord: Museus#7777)
 """
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import os
 import sys
 import platform
@@ -11,7 +11,10 @@ import pkgutil
 import importlib.util
 import contextlib
 import signal
-from subprocess import Popen, PIPE, STDOUT
+import asyncio
+import functools
+from asyncio import create_subprocess_exec as Popen
+from asyncio.subprocess import PIPE, STDOUT
 
 # Do not include extension
 EXECUTABLE_NAMES = { "hades" : "Hades", "pyre": "Pyre" }
@@ -25,13 +28,20 @@ PROXY_LOADED_PREFIX = "StyxScribe: ACK"
 INTERNAL_IGNORE_PREFIXES = (PROXY_LOADED_PREFIX,)
 OUTPUT_FILE = "game_output.log" 
 
+#https://github.com/pallets/click/issues/2033#issue-960810534
+def make_sync(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(func(*args, **kwargs))
+    return wrapper
+
 class StyxScribe:
     """
     Used to launch the game with a wrapper that listens for specified patterns.
     Calls any functions that are added via `add_hook` when patterns are detected.
     """
 
-    class Modules(dict):
+    class Modules(OrderedDict):
         def __getattr__(self, key):
             if self.__dict__.__contains__(key):
                 return self.__dict__.__getitem__(key)
@@ -118,21 +128,20 @@ class StyxScribe:
                 file.flush()
         self.send = send
 
-        def run(out=None):
+        @make_sync
+        async def run(out=None):
             setup_proxies()
-                
-            self.game = Popen(
-                self.args,
+
+            self.game = await Popen(
+                str(self.args[0]),*self.args[0:],
                 cwd=self.executable_purepath.parent,
                 stdout=PIPE,
-                stderr=STDOUT,
-                universal_newlines=True,
-                encoding="utf8",
+                stderr=STDOUT
             )
 
             try:
-                while self.game.poll() is None:
-                    output = self.game.stdout.readline()
+                while self.game.returncode is None:
+                    output = (await self.game.stdout.readline()).decode()
                     if not output:
                         break
                     output = output[:-1]
@@ -152,14 +161,13 @@ class StyxScribe:
                                 callback(output[len(prefix):])
             except KeyboardInterrupt:
                 self.close()
+            self.close()
 
         if log:
             with open(log, 'w', encoding="utf8") as out:
                 run(out)
         else:
             run()
-
-        self.close()
 
     def add_hook(self, callback, prefix="", source=None):
         """Add a target function to be called when pattern is detected
@@ -184,12 +192,21 @@ class StyxScribe:
         print(f"Adding hook on \"{prefix}\" with {callback}")
 
     def load_plugins(self):
+        modules = OrderedDict()
         for module_finder, name, _ in pkgutil.iter_modules(self.plugins_paths):
             spec = module_finder.find_spec(name)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             module.scribe = self
-            self.modules[name] =  module
+            modules[name] =  module
+        def key(t):
+            module = t[1]
+            if hasattr(module, "priority"):
+                return module.priority
+            return 100
+        modules = OrderedDict(sorted(modules.items(), key=key))
+        self.modules.update(modules)
+        for module in modules.values():
             if hasattr(module, "load"):
                 module.load()
             elif hasattr(module, "callback"):
