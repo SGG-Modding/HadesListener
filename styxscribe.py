@@ -95,7 +95,8 @@ class StyxScribe:
         proxy_switch = False
 
         def sane(message):
-            return f"[===[{message}]===]"
+            equals = '='*(1+message.count('='))
+            return f"[{equals}[{message}]{equals}]"
 
         def quick_write_file(path, content):
             with open(path, 'w', encoding="utf8") as file:
