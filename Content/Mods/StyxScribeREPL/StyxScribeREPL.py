@@ -42,7 +42,7 @@ class KeyboardThread(threading.Thread):
         except KeyboardInterrupt:
             end()
 
-def my_callback(inp):
+def evaluate(inp):
     #evaluate the keyboard input
     if inp:
         if inp[:1] == ">":
@@ -50,11 +50,10 @@ def my_callback(inp):
         else:
             run_lua(inp)
 
-#start the Keyboard thread
-kthread = KeyboardThread(my_callback)
-
 prefix = "StyxScribeREPL: "
 def load():
+    #start the Keyboard thread
+    kthread = KeyboardThread(evaluate)
     scribe.add_hook(run_py, prefix, __name__)
     scribe.ignore_prefixes.append(prefix)
 
