@@ -182,6 +182,7 @@ class StyxScribe:
 
             sender.cancel()
             self.queue = None
+            self.loop = None
             self.close()
 
         if log:
