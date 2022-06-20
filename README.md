@@ -75,6 +75,11 @@ def load( ):
         scribe.send( prefix + message )
     scribe.add_hook( callback, prefix, __name__ )
 ```
+Either way, what determines the order in which the functions your module defines get called is the module's priority
+```py
+priority = 100
+```
+100 is the default priority, lower priority modules are loaded earlier.
 
 You can access all the loaded modules from `scribe.modules`
 
