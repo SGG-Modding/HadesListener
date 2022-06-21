@@ -13,6 +13,7 @@ import contextlib
 import signal
 import asyncio
 import functools
+import inspect
 from asyncio import create_subprocess_exec as Popen
 from asyncio.subprocess import PIPE, STDOUT
 
@@ -34,6 +35,10 @@ def make_sync(func):
     def wrapper(*args, **kwargs):
         return asyncio.run(func(*args, **kwargs))
     return wrapper
+
+async def async_generator():
+    yield
+async_generator = type(async_generator())
 
 class StyxScribe:
     """
@@ -176,7 +181,13 @@ class StyxScribe:
                     for prefix, callbacks in self.hooks.items():
                         if output.startswith(prefix):
                             for callback in callbacks:
-                                callback(output[len(prefix):])
+                                msg = output[len(prefix):]
+                                if asyncio.iscoroutinefunction(callback):
+                                    await callback(msg)
+                                else:
+                                    callback = callback(msg)
+                                    if isinstance(callback, async_generator):
+                                        await callback(msg)
             except KeyboardInterrupt:
                 pass
 
