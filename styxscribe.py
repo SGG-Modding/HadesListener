@@ -232,6 +232,7 @@ class StyxScribe:
             spec.loader.exec_module(module)
             module.scribe = self
             modules[name] =  module
+        print("Found Modules: "+', '.join(modules.keys()))
         def key(t):
             module = t[1]
             if hasattr(module, "priority"):
@@ -239,6 +240,7 @@ class StyxScribe:
             return 100
         modules = OrderedDict(sorted(modules.items(), key=key))
         self.modules.update(modules)
+        print("Loading Modules: "+', '.join(modules.keys()))
         for module in modules.values():
             if hasattr(module, "load"):
                 module.load()
