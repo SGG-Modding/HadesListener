@@ -40,6 +40,9 @@ async def async_generator():
     yield
 async_generator = type(async_generator())
 
+def ispromise(promise):
+    return asyncio.iscoroutine(promise) or isinstance(promise, async_generator)
+
 class StyxScribe:
     """
     Used to launch the game with a wrapper that listens for specified patterns.
@@ -122,11 +125,16 @@ class StyxScribe:
 
         def setup_proxies():
             nonlocal proxy_switch
-            quick_write_file(self.proxy_purepaths[None], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[proxy_switch].name)}")
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(self.proxy_purepaths[proxy_switch])
+            prefix = f"print({sane(PROXY_LOADED_PREFIX)});"
+            oldproxy = f"return {sane(self.proxy_purepaths[proxy_switch].name)}"
+            newproxy = f"return {sane(self.proxy_purepaths[not proxy_switch].name)}"
+            #point lua's entry to next proxy
+            quick_write_file(self.proxy_purepaths[None], newproxy)
+            #point old proxy to next proxy
+            quick_write_file(self.proxy_purepaths[proxy_switch], newproxy)
+            #point next proxy to old proxy
             proxy_switch = not proxy_switch
-            quick_write_file(self.proxy_purepaths[proxy_switch], f"print({sane(PROXY_LOADED_PREFIX)});return {sane(self.proxy_purepaths[not proxy_switch].name)}")
+            quick_write_file(self.proxy_purepaths[proxy_switch], prefix+oldproxy)
 
         async def send_loop():
             #https://gist.github.com/tomschr/39734f0151a14187fd8f4844f66be6ba#file-asyncio-producer-consumer-task_done-py-L22
@@ -181,13 +189,9 @@ class StyxScribe:
                     for prefix, callbacks in self.hooks.items():
                         if output.startswith(prefix):
                             for callback in callbacks:
-                                msg = output[len(prefix):]
-                                if asyncio.iscoroutinefunction(callback):
-                                    await callback(msg)
-                                else:
-                                    promise = callback(msg)
-                                    if isinstance(promise, async_generator):
-                                        await promise
+                                promise = callback(output[len(prefix):])
+                                if ispromise(promise):
+                                    await promise
             except KeyboardInterrupt:
                 pass
 
