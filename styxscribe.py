@@ -185,9 +185,9 @@ class StyxScribe:
                                 if asyncio.iscoroutinefunction(callback):
                                     await callback(msg)
                                 else:
-                                    callback = callback(msg)
-                                    if isinstance(callback, async_generator):
-                                        await callback(msg)
+                                    promise = callback(msg)
+                                    if isinstance(promise, async_generator):
+                                        await promise
             except KeyboardInterrupt:
                 pass
 
