@@ -16,6 +16,7 @@ import functools
 import inspect
 from asyncio import create_subprocess_exec as Popen
 from asyncio.subprocess import PIPE, STDOUT
+import traceback
 
 # Do not include extension
 EXECUTABLE_NAMES = { "hades" : "Hades", "pyre": "Pyre" }
@@ -189,9 +190,12 @@ class StyxScribe:
                     for prefix, callbacks in self.hooks.items():
                         if output.startswith(prefix):
                             for callback in callbacks:
-                                promise = callback(output[len(prefix):])
-                                if ispromise(promise):
-                                    await promise
+                                try:
+                                    promise = callback(output[len(prefix):])
+                                    if ispromise(promise):
+                                        await promise
+                                except Exception:
+                                    traceback.print_exc(file=sys.stdout)
             except KeyboardInterrupt:
                 pass
 
