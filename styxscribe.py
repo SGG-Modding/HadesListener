@@ -90,7 +90,7 @@ class StyxScribe:
         self.args.insert(0, self.executable_purepath)
         self.hooks = defaultdict(list)
         self.modules = self.Modules()
-        self.modules[__name__] = sys.modules[__name__]
+        self.module = sys.modules[__name__]
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
         
         self.queue = None
@@ -172,6 +172,9 @@ class StyxScribe:
             sender = asyncio.ensure_future(send_loop())
 
             try:
+                for module in self.modules.values():
+                    if hasattr(module, "run"):
+                        module.run()
                 while self.game.returncode is None:
                     output = (await self.game.stdout.readline()).decode()
                     if not output:
@@ -200,6 +203,11 @@ class StyxScribe:
                 pass
 
             sender.cancel()
+
+            for module in self.modules.values():
+                if hasattr(module, "cleanup"):
+                    module.cleanup()
+            
             self.queue = None
             self.loop = None
             self.close()
