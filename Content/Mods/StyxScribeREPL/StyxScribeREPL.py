@@ -7,22 +7,33 @@ import contextlib
 import signal
 from io import StringIO
 from traceback import format_exception_only
+import builtins
+
+_globals = {a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}
+_locals = None
 
 def run_lua(s):
     scribe.send(prefix + s)
 
+def run_py_eval(s, g, l):
+    try:
+        return eval(compile(s, '<string>', 'single'), g, l)
+    except SyntaxError as e:
+        if e.args[0] == "unexpected EOF while parsing":
+            return eval(compile(s, '<string>', 'exec'), g, l)
+        else:
+            raise SyntaxError from e
+
 def run_py(s):
+    global _locals
+    if _locals is None:
+        _locals = dict(scribe.modules)
+        _locals["scribe"] = scribe
     s = s.lstrip()
     try:
-        try:
-            eval(compile(s, '<string>', 'single'), globals())
-        except SyntaxError as e:
-            if e.args[0] == "unexpected EOF while parsing":
-                eval(compile(s, '<string>', 'exec'), globals())
-            else:
-                raise SyntaxError from e
+        run_py_eval(s, _globals, _locals)
     except Exception:
-        print(exception_string(),end='')
+        print(exception_string(), end='')
 
 def _run_py(s):
     _stdout = StringIO()
