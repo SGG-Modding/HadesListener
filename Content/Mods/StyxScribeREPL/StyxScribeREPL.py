@@ -9,13 +9,18 @@ from io import StringIO
 from traceback import format_exception_only
 import builtins
 
-_globals = {a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}
+def end():
+    Scribe.Close(True)
+End = end
+END = end
+
+_globals = {**{"end":end},**{a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}}
 _locals = None
 
-def run_lua(s):
-    scribe.send(prefix + s)
+def RunLua(s):
+    Scribe.Send(prefix + s)
 
-def run_py_eval(s, g, l):
+def _run_py_eval(s, g, l):
     try:
         return eval(compile(s, '<string>', 'single'), g, l)
     except SyntaxError as e:
@@ -24,27 +29,27 @@ def run_py_eval(s, g, l):
         else:
             raise SyntaxError from e
 
-def run_py(s):
-    global _locals
-    if _locals is None:
-        _locals = dict(scribe.modules)
-        _locals["scribe"] = scribe
-    s = s.lstrip()
-    try:
-        run_py_eval(s, _globals, _locals)
-    except Exception:
-        print(exception_string(), end='')
-
 def _run_py(s):
     _stdout = StringIO()
     with contextlib.redirect_stdout(_stdout):
-        run_py(s)
+        RunPython(s)
     _stdout.flush()
     io = _stdout.getvalue()
     if '\n' in io:
         print("".join(("\nPy: "+s for s in io.split('\n')[:-1]))[1:])
     else:
         print(io,end='')
+
+def RunPython(s):
+    global _locals
+    if _locals is None:
+        _locals = dict(scribe.modules)
+        _locals["scribe"] = scribe
+    s = s.lstrip()
+    try:
+        _run_py_eval(s, _globals, _locals)
+    except Exception:
+        print(exception_string(), end='')
 
 def exception_string():
     return "".join(format_exception_only(*(sys.exc_info()[:2])))
@@ -71,14 +76,10 @@ def evaluate(inp):
         if inp[:1] == ">":
             _run_py(inp[1:])
         else:
-            run_lua(inp)
+            RunLua(inp)
 
-prefix = "StyxScribeREPL: "
-def load():
+def Load():
     #start the Keyboard thread
-    kthread = KeyboardThread(evaluate)
-    scribe.add_hook(_run_py, prefix, __name__)
-    scribe.ignore_prefixes.append(prefix)
-
-def end():
-    scribe.close(True)
+    KeyboardThread(evaluate)
+    Scribe.AddHook(_run_py, "StyxScribeREPL: ", __name__)
+    Scribe.IgnorePrefixes.append("StyxScribeREPL: ")

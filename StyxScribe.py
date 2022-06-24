@@ -44,6 +44,17 @@ async_generator = type(async_generator())
 def ispromise(promise):
     return asyncio.iscoroutine(promise) or isinstance(promise, async_generator)
 
+def getattr_nocase(obj,name,default=None):
+    try:
+        return getattr(obj, name)
+    except AttributeError:
+        pass
+    name = name.lower()
+    for n in dir(obj):
+        if n.lower() == name:
+            return getattr(obj,n)
+    return default
+
 class StyxScribe:
     """
     Used to launch the game with a wrapper that listens for specified patterns.
@@ -95,6 +106,21 @@ class StyxScribe:
         
         self.queue = None
         self.loop = None
+
+        self.IgnorePrefixes = self.ignore_prefixes
+        self.AddHook = self.add_hook
+        self.Launch = self.launch
+        self.LoadPlugins = self.load_plugins
+        self.Close = self.close
+        self.Module = self.module
+        self.Modules = self.modules
+
+    @property
+    def Loop(self):
+        return self.loop
+
+    def Send(self, message):
+        return self.send(message)
 
     def close(self, abort=True):
         try:
@@ -173,8 +199,9 @@ class StyxScribe:
 
             try:
                 for module in self.modules.values():
-                    if hasattr(module, "run"):
-                        module.run()
+                    _run = getattr_nocase(module, "Run")
+                    if _run is not None:
+                        _run()
                 while self.game.returncode is None:
                     output = (await self.game.stdout.readline()).decode()
                     if not output:
@@ -205,8 +232,9 @@ class StyxScribe:
             sender.cancel()
 
             for module in self.modules.values():
-                if hasattr(module, "cleanup"):
-                    module.cleanup()
+                _cleanup = getattr_nocase(module, "Cleanup")
+                if _cleanup is not None:
+                    _cleanup()
             
             self.queue = None
             self.loop = None
@@ -247,18 +275,20 @@ class StyxScribe:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             module.scribe = self
+            module.Scribe = self
             modules[name] =  module
         print("Found Modules: "+', '.join(modules.keys()))
         def key(t):
-            module = t[1]
-            if hasattr(module, "priority"):
-                return module.priority
-            return 100
+            return getattr_nocase(t[1], "priority", 100)
         modules = OrderedDict(sorted(modules.items(), key=key))
         self.modules.update(modules)
         print("Loading Modules: "+', '.join(modules.keys()))
         for module in modules.values():
-            if hasattr(module, "load"):
-                module.load()
-            elif hasattr(module, "callback"):
-                self.add_hook(module.callback, getattr(module, "prefix", name + '\t'), name)
+            _load = getattr_nocase(module, "Load")
+            if _load is not None:
+                _load()
+            else:
+                _callback = getattr_nocase(module, "Callback")
+                if _callback is not None:
+                    _prefix = getattr_nocase(module, "Prefix", name + '\t')
+                    self.add_hook(_callback, _prefix, name)

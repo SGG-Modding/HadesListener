@@ -5,5 +5,5 @@ from pathlib import Path
 os.chdir(Path(sys.argv[0]).parent)
 
 subsume = StyxScribe("Pyre")
-subsume.load_plugins()
-subsume.launch()
+subsume.LoadPlugins()
+subsume.Launch()

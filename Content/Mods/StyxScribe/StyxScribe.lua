@@ -54,7 +54,7 @@ function StyxScribe.AddHook( callback, prefix, source )
 	print( "StyxScribe: Adding hook on \"" .. prefix .. "\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
 end
 
-function StyxScribe.Notify( ... )
+local function notify( ... )
 	for _, message in vararg( ... ) do
 		--print( "StyxScribe: Received: " .. message )
 		for prefix, callbacks in rawpairs( hooks ) do
@@ -67,8 +67,6 @@ function StyxScribe.Notify( ... )
 		end
 	end
 end
-
-notify = StyxScribe.Notify
 
 do
 	local waitArgs = setmetatable({ screenTime = true }, {

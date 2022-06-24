@@ -6,13 +6,14 @@ from functools import wraps
 from threading import local as thread_local
 from types import MethodType
 
-proxy_types = dict()
-marshall_types = OrderedDict()
+proxyTypes = dict()
+marshallTypes = OrderedDict()
 DELIM = '¦'
-NIL = None
 
 registry = None
 lookup = None
+
+NIL = None
 Root = None
 
 #https://stackoverflow.com/a/49013535
@@ -84,19 +85,19 @@ class _function():
     def __repr__(self):
         return repr(self.call)
 
-def not_implemented(self, *args, **kwargs):
+def notImplemented(self, *args, **kwargs):
     raise NotImplementedError(f"{type(self)} does not implement this operation")
 
-def proxytype(cls):
-    proxy_types[cls.__name__] = cls
+def proxyType(cls):
+    proxyTypes[cls.__name__] = cls
     return cls
 
-def marshalltype(*types):
+def marshallType(*types):
     def f(cls):
         for t in types:
-            mt = marshall_types.get(cls,set())
+            mt = marshallTypes.get(cls,set())
             mt.add(t)
-            marshall_types[cls] = mt
+            marshallTypes[cls] = mt
         return cls
     return f
 
@@ -116,7 +117,7 @@ class Proxy(metaclass=MetaOverrider):
         self.root = i == 0
         self.local = i > 0
         if self.local:
-            scribe.send(f"StyxScribeShared: New: {self.__class__.__name__}{DELIM}{i}")
+            Scribe.Send(f"StyxScribeShared: New: {self.__class__.__name__}{DELIM}{i}")
         if v is not None:
             self._marshall(v)
     def __hash__(self):
@@ -137,7 +138,7 @@ class Proxy(metaclass=MetaOverrider):
                 except KeyError:
                     pass
                 if self.local:
-                    scribe.send(f"StyxScribeShared: Del: {i}")
+                    Scribe.Send(f"StyxScribeShared: Del: {i}")
     def __getattribute__(self, name):
         if name in _meta_inherited[type(self)]:
             proxy = object.__getattribute__(self, "proxy")
@@ -156,7 +157,7 @@ class ProxySet(Proxy):
             i = lookup[self]
             k = encode(key)
             v = encode(val)
-            scribe.send(f"StyxScribeShared: Set: {i}{DELIM}{k}{DELIM}{v}")
+            Scribe.Send(f"StyxScribeShared: Set: {i}{DELIM}{k}{DELIM}{v}")
 
 class ProxyCall(Proxy):
     def _marshall(self, obj):
@@ -165,8 +166,8 @@ class ProxyCall(Proxy):
         else:
             raise TypeError(f"{type(self)} cannot marshall type {type(obj)}")
 
-@proxytype
-@marshalltype(dict, set)
+@proxyType
+@marshallType(dict, set)
 class Table(ProxySet, dict):
     def _marshall(self, obj):
         if isinstance(obj, set):
@@ -195,14 +196,14 @@ class Table(ProxySet, dict):
             return self.proxy[key]
         except KeyError:
             return NIL
-    setdefault = not_implemented
-    update = not_implemented
-    pop = not_implemented
-    popitem = not_implemented
-    clear = not_implemented
+    setdefault = notImplemented
+    update = notImplemented
+    pop = notImplemented
+    popitem = notImplemented
+    clear = notImplemented
 
-@proxytype
-@marshalltype(list, tuple)
+@proxyType
+@marshallType(list, tuple)
 class Array(ProxySet, list):
     def _marshall(self, obj):
         enum = None
@@ -240,17 +241,17 @@ class Array(ProxySet, list):
             return self.proxy[key]
         except KeyError:
             return NIL
-    append = not_implemented
-    extend = not_implemented
-    insert = not_implemented
-    remove = not_implemented
-    sort = not_implemented
-    reverse = not_implemented
-    pop = not_implemented
-    clear = not_implemented
+    append = notImplemented
+    extend = notImplemented
+    insert = notImplemented
+    remove = notImplemented
+    sort = notImplemented
+    reverse = notImplemented
+    pop = notImplemented
+    clear = notImplemented
 
-@proxytype
-@marshalltype(list, tuple)
+@proxyType
+@marshallType(list, tuple)
 class Args(ProxySet, list):
     def _marshall(self, obj):
         enum = None
@@ -296,17 +297,17 @@ class Args(ProxySet, list):
             return self.proxy[key]
         except KeyError:
             return NIL
-    append = not_implemented
-    extend = not_implemented
-    insert = not_implemented
-    remove = not_implemented
-    sort = not_implemented
-    reverse = not_implemented
-    pop = not_implemented
-    clear = not_implemented
+    append = notImplemented
+    extend = notImplemented
+    insert = notImplemented
+    remove = notImplemented
+    sort = notImplemented
+    reverse = notImplemented
+    pop = notImplemented
+    clear = notImplemented
 
-@proxytype
-@marshalltype(_function)
+@proxyType
+@marshallType(_function)
 class Action(ProxyCall, _function):
     def __call__(self, *args):
         if self.local:
@@ -315,12 +316,12 @@ class Action(ProxyCall, _function):
             i = lookup[self]
             a = Args(args)
             ai = lookup[a]
-            scribe.send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+            Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
 
 def marshaller(obj):
     if isinstance(obj,Proxy):
         return None
-    for c,ts in marshall_types.items():
+    for c,ts in marshallTypes.items():
         for t in ts:
             if isinstance(obj,t):
                 return c
@@ -369,12 +370,12 @@ def decode(s):
         return NIL
     raise TypeError(s + " cannot be decoded.")
 
-def handle_new(message):
+def handleNew(message):
     t, i = message.split(DELIM)
-    val = proxy_types[t](None, -int(i))
+    val = proxyTypes[t](None, -int(i))
     return val
 
-def handle_set(message):
+def handleSet(message):
     i, k, v = message.split(DELIM)
     try:
         s = registry[-int(i)]
@@ -386,7 +387,7 @@ def handle_set(message):
     v = decode(v)
     s.__setitem__(k, v, False)
 
-def handle_del(message):
+def handleDel(message):
     i = -int(message)
     obj = registry.get(i,None)
     if obj is not None:
@@ -401,16 +402,15 @@ def handle_del(message):
             except KeyError:
                 pass
 
-def handle_act(message):
+def handleAct(message):
     func, args = message.split(DELIM)
     func = registry[-int(func)]
     args = registry[-int(args)]
     func(*args)
 
-def handle_reset(message=None):
+def handleReset(message=None):
     global registry
     global lookup
-    global obj_data
     global Root
     if registry is not None:
         registry.clear()
@@ -419,15 +419,15 @@ def handle_reset(message=None):
         lookup.clear()
     lookup = WeakKeyDictionary()
     Root = Table(None, 0)
-    scribe.send( "StyxScribeShared: Reset" )
+    Scribe.Send( "StyxScribeShared: Reset" )
 
-def load():
-    scribe.add_hook(handle_reset, "StyxScribeShared: Reset", __name__)
-    scribe.add_hook(handle_new, "StyxScribeShared: New: ", __name__)
-    scribe.add_hook(handle_set, "StyxScribeShared: Set: ", __name__)
-    scribe.add_hook(handle_del, "StyxScribeShared: Del: ", __name__)
-    scribe.add_hook(handle_act, "StyxScribeShared: Act: ", __name__)
-    scribe.ignore_prefixes.append("StyxScribeShared:")
+def Load():
+    Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
+    Scribe.AddHook(handleNew, "StyxScribeShared: New: ", __name__)
+    Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
+    Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
+    Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
+    Scribe.IgnorePrefixes.append("StyxScribeShared:")
 
-def run():
-    handle_reset()
+def Run():
+    handleReset()
