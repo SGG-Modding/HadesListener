@@ -18,7 +18,7 @@ _globals = {**{"end":end},**{a:b for a,b in builtins.__dict__.items() if not a.s
 _locals = None
 
 def RunLua(s):
-    Scribe.Send(prefix + s)
+    Scribe.Send("StyxScribeREPL: "+ s)
 
 def _run_py_eval(s, g, l):
     try:
