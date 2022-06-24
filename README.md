@@ -90,10 +90,12 @@ Turns the output console into a lua and python REPL
 to use the python REPL, prefix your message with `>`
 ```
 >(1,2)
-(1, 2)
+Py: (1, 2)
 ```
 in the python REPL you can access all the modules via `scribe.modules`    
 >   example:    `scribe.modules.StyxScribeShared`     
+or directly from their module name    
+>   example:    `StyxScribeREPL`   
 
 you can send code to be executed lua side using the function `run_lua`
 
@@ -111,34 +113,33 @@ To immediately exit both the game and terminal, type `>end()`
 
 Adds some shared state between the python and the game's lua in the form of a new type of object that communicates implicitly.
 
-* Lua: `StyxScribe.Shared`
-* Python: `scribe.shared`
+`StyxScribeShared.Root`
 
 using the [REPL](#REPL) to demonstrate:
 ```
-StyxScribe.Shared.Health = CurrentRun.Hero.Health
+StyxScribeShared.Root.Health = CurrentRun.Hero.Health
 CurrentRun.Hero.Health
 Out: 100
->scribe.shared["Health"] += 15
-StyxScribe.Shared.Health
+>StyxScribeShared.Root["Health"] += 15
+StyxScribeShared.Root.Health
 Out: 115
 ```
 
-you can create new shared objects:
+you can marshall new shared objects:
 
 ```
->scribe.shared
-{}
-ModUtil.ToString.Deep( StyxScribe.Shared )
+>StyxScribeShared.Root
+Py: {}
+ModUtil.ToString.Deep( StyxScribeShared.Root )
 Out: "<table:1E0AB8E2750>( )"
->scribe.shared["A"] = scribe.shared()
->scribe.shared
-{'A': {}}
-ModUtil.ToString.Deep( StyxScribe.Shared )
+>StyxScribeShared.Root["A"] = {}
+>StyxScribeShared.Root
+Py: {'A': {}}
+ModUtil.ToString.Deep( StyxScribeShared.Root )
 Out: "<table:1E0AB8E2750>( A = <table:1E13A479AA0>(  ) )"
-StyxScribe.Shared.A.B = StyxScribe.Shared( )
->scribe.shared
-{'A': {'B': {}}}
+StyxScribeShared.Root.A.B = StyxScribeShared.Root( )
+>StyxScribeShared.Root
+Py: {'A': {'B': {}}}
 ```
 
 ## Videos
