@@ -9,12 +9,10 @@ from io import StringIO
 from traceback import format_exception_only
 import builtins
 
-def end():
+def End():
     Scribe.Close(True)
-End = end
-END = end
 
-_globals = {**{"end":end},**{a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}}
+_globals = {**{"end":End,"End":End,"END":End},**{a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}}
 _locals = None
 
 def RunLua(s):

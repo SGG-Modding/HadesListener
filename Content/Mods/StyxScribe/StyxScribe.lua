@@ -2,7 +2,6 @@ ModUtil.Mod.Register("StyxScribe")
 
 local hooks = { }
 local delay = 0.25
-local notify
 local print, pcall, loadfile, select, rawipairs, rawpairs, yield = print, pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
 
 print( "StyxScribe: Lua Refreshed!" )
