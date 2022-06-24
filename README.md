@@ -13,7 +13,7 @@ For example plugins look at the [REPL](Content/Mods/StyxScribeREPL) or the [shar
 * place this repo's contents directly into your Hades or Pyre folder    
 * (if on mac move the `Content` folder to `Contents/Resources/Content`)  
 * run `modimporter` in the `Content` folder 
-* run `subsume_hades.py` or `subsume_pyre.py` to run the game with the scribe attached
+* run `SubsumeHades.py` or `SubsumePyre.py` to run the game with the scribe attached
 * load a save in Hades (or merely let the main menu open in Pyre), so the lua begins `Polling...`
 
 ## Plugins
@@ -54,34 +54,36 @@ to the end of your `modfile.txt`
 The python script (inside the `load` or `callback` global function) can interface with the `scribe` global:
 ```py
 # prefix for communicating over a channel
-prefix = "MyMod: Message: "
-def callback( message ):
+Prefix = "MyMod: Message: "
+def Callback( message ):
     # do something with the message
     # the message will have the prefix removed already
 
     # example: sending back the same message
-    scribe.send( prefix + message )
+    Scribe.Send( Prefix + message )
 ```
 or
 ```py
-def load( ):
+def Load( ):
     # prefix for communicating over a channel
-    prefix = "MyMod: Message: "
-    def callback( message ):
+    Prefix = "MyMod: Message: "
+    def Callback( message ):
         # do something with the message
         # the message will have the prefix removed already
 
         # example: sending back the same message
-        scribe.send( prefix + message )
-    scribe.add_hook( callback, prefix, __name__ )
+        Scribe.Send( Prefix + message )
+    Scribe.AddHook( Callback, Prefix, __name__ )
 ```
 Either way, what determines the order in which the functions your module defines get called is the module's priority
 ```py
-priority = 100
+Priority = 100
 ```
-100 is the default priority, lower priority modules are loaded earlier.
+100 is the default priority, lower priority modules are loaded earlier.     
 
-You can access all the loaded modules from `scribe.modules`
+There are two other special functions you can define in your module:     
+`Run` is like `Load` except it runs just after the game has launched, so Scribe.Send can be used immediately from this point      
+`Cleanup` runs after the game has closed, use this to clean up any extraneous links you had set up (like open sockets, files, or auth sessions)
 
 ### REPL
 
@@ -92,8 +94,8 @@ to use the python REPL, prefix your message with `>`
 >(1,2)
 Py: (1, 2)
 ```
-in the python REPL you can access all the modules via `scribe.modules`    
->   example:    `scribe.modules.StyxScribeShared`     
+in the python REPL you can access all the modules via `Scribe.Modules`    
+>   example:    `Scribe.Modules.StyxScribeShared`     
 or directly from their module name    
 >   example:    `StyxScribeREPL`   
 
