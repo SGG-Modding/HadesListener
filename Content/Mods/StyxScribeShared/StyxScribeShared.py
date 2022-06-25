@@ -419,7 +419,6 @@ def handleReset(message=None):
         lookup.clear()
     lookup = WeakKeyDictionary()
     Root = Table(None, 0)
-    Scribe.Send( "StyxScribeShared: Reset" )
 
 def Load():
     Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
@@ -428,6 +427,3 @@ def Load():
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
     Scribe.IgnorePrefixes.append("StyxScribeShared:")
-
-def Run():
-    handleReset()
