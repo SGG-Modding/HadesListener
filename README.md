@@ -82,8 +82,10 @@ Priority = 100
 100 is the default priority, lower priority modules are loaded earlier.     
 
 There are two other special functions you can define in your module:     
-`Run` is like `Load` except it runs just after the game has launched, so Scribe.Send can be used immediately from this point      
-`Cleanup` runs after the game has closed, use this to clean up any extraneous links you had set up (like open sockets, files, or auth sessions)
+`Run` is like `Load` except it runs just after the game has launched, so Scribe.Send can be used immediately from this point     
+If you have defined `Load` then use `Scribe.AddOnRun` inside of `Load` instead.     
+`Cleanup` runs after the game has closed, use this to clean up any extraneous links you had set up (like open sockets, files, or auth sessions)     
+If you have defined `Load` then use `Scribe.AddOnCleanup` inside of `Load` instead.
 
 ### REPL
 
