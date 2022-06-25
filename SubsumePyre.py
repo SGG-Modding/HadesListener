@@ -1,4 +1,4 @@
-from styxscribe import StyxScribe
+from StyxScribe import StyxScribe
 
 import sys, os
 from pathlib import Path

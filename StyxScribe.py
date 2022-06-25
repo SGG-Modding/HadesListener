@@ -44,6 +44,13 @@ async_generator = type(async_generator())
 def ispromise(promise):
     return asyncio.iscoroutine(promise) or isinstance(promise, async_generator)
 
+async def callpromise(call, *args, **kwargs):
+    promise = call(*args, **kwargs)
+    if ispromise(promise):
+        return await promise
+    else:
+        return promise
+
 def getattr_nocase(obj,name,default=None):
     try:
         return getattr(obj, name)
@@ -103,6 +110,8 @@ class StyxScribe:
         self.modules = self.Modules()
         self.module = sys.modules[__name__]
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
+        self.on_cleanups = []
+        self.on_runs = []
         
         self.queue = None
         self.loop = None
@@ -114,6 +123,8 @@ class StyxScribe:
         self.Close = self.close
         self.Module = self.module
         self.Modules = self.modules
+        self.AddOnRun = self.add_on_run
+        self.AddOnCleanup = self.add_on_cleanup
 
     @property
     def Loop(self):
@@ -197,11 +208,10 @@ class StyxScribe:
             self.queue = asyncio.Queue()
             sender = asyncio.ensure_future(send_loop())
 
+            for callback in self.on_runs:
+                await callpromise(callback)
+
             try:
-                for module in self.modules.values():
-                    _run = getattr_nocase(module, "Run")
-                    if _run is not None:
-                        _run()
                 while self.game.returncode is None:
                     output = (await self.game.stdout.readline()).decode()
                     if not output:
@@ -221,20 +231,16 @@ class StyxScribe:
                         if output.startswith(prefix):
                             for callback in callbacks:
                                 try:
-                                    promise = callback(output[len(prefix):])
-                                    if ispromise(promise):
-                                        await promise
+                                    await callpromise(callback, output[len(prefix):])
                                 except Exception:
                                     traceback.print_exc(file=sys.stdout)
             except KeyboardInterrupt:
                 pass
 
-            sender.cancel()
+            for callback in self.on_cleanups:
+                await callpromise(callback)
 
-            for module in self.modules.values():
-                _cleanup = getattr_nocase(module, "Cleanup")
-                if _cleanup is not None:
-                    _cleanup()
+            sender.cancel()
             
             self.queue = None
             self.loop = None
@@ -245,6 +251,32 @@ class StyxScribe:
                 run(out)
         else:
             run()
+
+    def add_on_run(self, callback, source=None):
+        if callback in self.on_runs:
+            return  # Function already hooked
+        if not callable(callback):
+            if source is not None:
+                raise TypeError("Callback must be callable, blame {source}.")
+            else:
+                raise TypeError("Callback must be callable.")
+        self.on_runs.append(callback)
+        if source is not None:
+            callback = f"{callback} from {source}"
+        print(f"Adding hook to game run with {callback}")
+
+    def add_on_cleanup(self, callback, source=None):
+        if callback in self.on_cleanups:
+            return  # Function already hooked
+        if not callable(callback):
+            if source is not None:
+                raise TypeError("Callback must be callable, blame {source}.")
+            else:
+                raise TypeError("Callback must be callable.")
+        self.on_cleanups.append(callback)
+        if source is not None:
+            callback = f"{callback} from {source}"
+        print(f"Adding hook to game cleanup with {callback}")
 
     def add_hook(self, callback, prefix="", source=None):
         """Add a target function to be called when pattern is detected
@@ -292,3 +324,9 @@ class StyxScribe:
                 if _callback is not None:
                     _prefix = getattr_nocase(module, "Prefix", name + '\t')
                     self.add_hook(_callback, _prefix, name)
+                _cleanup = getattr_nocase(module, "Cleanup")
+                if _cleanup is not None:
+                    self.add_on_cleanup(_cleanup, name)
+                _run = getattr_nocase(module, "Run")
+                if _run is not None:
+                    self.add_on_run(_run, name)

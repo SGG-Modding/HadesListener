@@ -64,9 +64,9 @@ class KeyboardThread(threading.Thread):
             while True:
                 self.input_cbk(input()) #waits to get input + Return
         except EOFError:
-            end()
+            End()
         except KeyboardInterrupt:
-            end()
+            End()
 
 def evaluate(inp):
     #evaluate the keyboard input
@@ -78,6 +78,6 @@ def evaluate(inp):
 
 def Load():
     #start the Keyboard thread
-    KeyboardThread(evaluate)
+    Scribe.AddOnRun(lambda: KeyboardThread(evaluate), __name__)
     Scribe.AddHook(_run_py, "StyxScribeREPL: ", __name__)
     Scribe.IgnorePrefixes.append("StyxScribeREPL: ")
