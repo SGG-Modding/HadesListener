@@ -1,5 +1,3 @@
-#repurposed from https://stackoverflow.com/questions/2408560/non-blocking-console-input/57387909#57387909
-
 import threading
 import sys
 import os
@@ -53,7 +51,7 @@ def exception_string():
     return "".join(format_exception_only(*(sys.exc_info()[:2])))
 
 class KeyboardThread(threading.Thread):
-
+    #repurposed from https://stackoverflow.com/a/57387909
     def __init__(self, input_cbk = None, name='keyboard-input-thread'):
         self.input_cbk = input_cbk
         super(KeyboardThread, self).__init__(name=name)
