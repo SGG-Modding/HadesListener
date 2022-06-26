@@ -1,7 +1,10 @@
 ModUtil.Mod.Register( "StyxScribeAlarm" )
 
+local runTime = _screenTime
+
 local function alarm()
 	print( "StyxScribeAlarm: Alarm" )
+	print( "StyxScribe is unresponsive! (" .. _screenTime - runTime .. ")" )
 end
 
 local buffer = true
