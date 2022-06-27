@@ -1,7 +1,8 @@
 ModUtil.Mod.Register("StyxScribe")
 
 local hooks = { }
-local delay = 0.25
+local pollPeriod = 0.25
+local pollDelay = 0.01
 local print, pcall, loadfile, select, rawipairs, rawpairs, yield = print, pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
 
 print( "StyxScribe: Lua Refreshed!" )
@@ -67,37 +68,38 @@ local function notify( ... )
 	end
 end
 
-do
-	local waitArgs = setmetatable({ screenTime = true }, {
-		__index = function( _, k )
-			if k == "wait" then return delay end
-			if k == "threadInfo" then return lastGoodThreadInfo end
-			return nil
-		end
-	})
-	
-	local function handle( valid, file, ... )
-		if valid then notify( ... ) end
-		return valid, file
-	end
+local debugMode = false
 
-	local function poll( )
-		local file = "proxy_stdin.txt"
-		while true do
-			--print( "StyxScribe: Polling...", file, _screenTime )
-			local valid, nextfile = handle( pcall( dofile, file ) )
-			if valid then file = nextfile end
-			yield( waitArgs )
-		end
+local waitArgs = setmetatable({ screenTime = true }, {
+	__index = function( _, k )
+		if k == "wait" then return pollPeriod end
+		if k == "threadInfo" then return lastGoodThreadInfo end
+		return nil
 	end
-	thread( poll )
-	
-	local function poke( )
-		waitScreenTime( 0.01 )
-		return print( "StyxScribe: Polling..." )
-	end
-	thread( poke )
+})
+
+local function handle( valid, file, ... )
+	if valid then notify( ... ) end
+	return valid, file
 end
+
+local function poll( )
+	local file = "proxy_stdin.txt"
+	while true do
+		if debugMode then print( "StyxScribe: Polling...", file, _screenTime ) end
+		local valid, nextfile = handle( pcall( dofile, file ) )
+		if valid then file = nextfile end
+		yield( waitArgs )
+	end
+end
+thread( poll )
+
+local function poke( )
+	waitScreenTime( pollDelay )
+	return print( "StyxScribe: Polling..." )
+end
+thread( poke )
+
 
 if DebugAssert then
 	ModUtil.Path.Wrap( "DebugAssert", function( base, args )
@@ -112,3 +114,8 @@ if DebugPrint then
 		return base( args )
 	end, StyxScribe )
 end
+
+StyxScribe.Internal = ModUtil.UpValues( function( )
+	return debugMode, pollDelay, pollPeriod, notify,
+		startswith, vararg, hooks, poke, poll, handle, waitArgs
+end )

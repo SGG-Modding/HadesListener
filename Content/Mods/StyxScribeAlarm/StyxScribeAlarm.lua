@@ -3,6 +3,7 @@ ModUtil.Mod.Register( "StyxScribeAlarm" )
 local runTime = _screenTime
 
 local function alarm()
+	StyxScribe.Internal.debugMode = true
 	print( "StyxScribeAlarm: Alarm" )
 	print( "StyxScribe is unresponsive! (" .. _screenTime - runTime .. ")" )
 end
@@ -15,7 +16,7 @@ end
 
 local function checkBuffer()
 	while true do
-		wait( 4 )
+		waitScreenTime( 4 )
 		if buffer == false then
 			alarm( )
 		end
