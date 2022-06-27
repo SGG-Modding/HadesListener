@@ -16,7 +16,7 @@ end
 
 local function checkBuffer()
 	while true do
-		waitScreenTime( 4 )
+		waitScreenTime( 15 )
 		if buffer == false then
 			alarm( )
 		end

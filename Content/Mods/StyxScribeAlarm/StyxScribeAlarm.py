@@ -16,7 +16,7 @@ class _PingThread(threading.Thread):
     def run(self):
         while True:
             Scribe.Send("StyxScribeAlarm: Ping")
-            time.sleep(2)
+            time.sleep(10)
 
 def _onrun():
     global _runtime
