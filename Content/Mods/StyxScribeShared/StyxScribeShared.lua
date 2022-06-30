@@ -262,7 +262,19 @@ local Args = marshallType( "table", typeCall( class( "Args", ProxySet, {
 	end
 } ), function( cls, ... ) return cls:_new( ... ) end ) )
 
-local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, { } ) ) )
+local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, {
+	__newindex = function( s, k, v, sync )
+		k, v = marshall( k ), marshall( v )
+		objectData[ s ][ "proxy" ][ k ] = v
+		local meta = getmetatable( s )
+		if sync == nil or sync then
+			if type( k ) == "number" then
+				k = k - 1
+			end
+			meta._shset( s, k, v )
+		end
+	end
+} ) ) )
 
 local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
 	__call = function( s, ... )
@@ -278,16 +290,19 @@ local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
 } ) ) )
 
 local KWAction = typeCall( class( "KWAction", Action, { 
-	__call = function( s, kwargs, ... )
+	__call = function( s, kwargs )
 		if objectData[ s ][ "local" ] then
-			objectData[ s ][ "proxy" ]( kwargs, ... )
+			objectData[ s ][ "proxy" ]( kwargs )
 		else
             local i = tostring( lookup[ s ] )
-            local a = new( Args, table.pack( new( KWArgs, kwargs ), ... ) )
+            local a = new( KWArgs, kwargs )
             local ai = tostring( lookup[ a ] )
             print("StyxScribeShared: Act: " .. i .. delim .. ai)
 		end
 	end,
+	_call = function( s, args )
+		return s( ModUtil.Table.Copy(objectData[ args ][ "proxy" ]) )
+	end
 } ) )
 
 --https://stackoverflow.com/a/33312901

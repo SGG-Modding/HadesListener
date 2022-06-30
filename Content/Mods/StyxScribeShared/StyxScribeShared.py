@@ -110,24 +110,24 @@ class Proxy(metaclass=MetaOverrider):
                 break
         if i is None:
             i = id(self)
-        self.proxy = proxy
-        self.alive = True
+        self._proxy = proxy
         registry[i] = self
         lookup[self] = i
-        self.root = i == 0
-        self.local = i > 0
-        if self.local:
+        self._root = i == 0
+        self._local = i > 0
+        self._alive = True
+        if self._local:
             Scribe.Send(f"StyxScribeShared: New: {self.__class__.__name__}{DELIM}{i}")
         if v is not None:
             self._marshall(v)
     def __hash__(self):
         return hash(id(self))
     def __repr__(self):
-        return repr(self.proxy)
+        return repr(self._proxy)
     def __del__(self):
         i = lookup.get(self,None)
         if i is not None:
-            self.alive = False
+            self._alive = False
             try:
                 del lookup[self]
             except KeyError:
@@ -137,11 +137,11 @@ class Proxy(metaclass=MetaOverrider):
                     del registry[i]
                 except KeyError:
                     pass
-                if self.local:
+                if self._local:
                     Scribe.Send(f"StyxScribeShared: Del: {i}")
     def __getattribute__(self, name):
         if name in _meta_inherited[type(self)]:
-            proxy = object.__getattribute__(self, "proxy")
+            proxy = object.__getattribute__(self, "_proxy")
             try:
                 attr = getattr(proxy, name)
                 if callable(attr) and attr.__self__ == proxy:
@@ -155,7 +155,7 @@ class Proxy(metaclass=MetaOverrider):
 
 class ProxySet(Proxy):
     def _shset(self, key, val):
-        if self.alive:
+        if self._alive:
             i = lookup[self]
             k = encode(key)
             v = encode(val)
@@ -164,14 +164,14 @@ class ProxySet(Proxy):
         return self.__setitem__(key, NIL, sync)
     def __getitem__(self, key):
         try:
-            return self.proxy[key]
+            return self._proxy[key]
         except KeyError:
             return NIL
 
 class ProxyCall(Proxy):
     def _marshall(self, obj):
         if callable(obj):
-            self.proxy = obj
+            self._proxy = obj
         else:
             raise TypeError(f"{type(self)} cannot marshall type {type(obj)}")
     def _call(self, args):
@@ -192,10 +192,10 @@ class Table(ProxySet, dict):
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
         if val is NIL:
-            del self.proxy[key]
+            del self._proxy[key]
         else:
             val = marshall(val)
-            self.proxy[key] = val
+            self._proxy[key] = val
         if sync:
             self._shset(key, val)
     setdefault = notImplemented
@@ -203,6 +203,22 @@ class Table(ProxySet, dict):
     pop = notImplemented
     popitem = notImplemented
     clear = notImplemented
+    def __getattr__(self, name):
+        if not name.startswith('_'):
+            return self[name]
+        return object.__getattribute__(self, name)
+    def __setattr__(self, name, value):
+        try:
+            self.__getattribute__(name)
+        except AttributeError:
+            try:
+                self.__getattr__(name)
+            except AttributeError:
+                pass
+            else:
+                self[name] = value
+                return
+        object.__setattr__(self, name, value)
 
 @proxyType
 @marshallType(list, tuple)
@@ -218,19 +234,19 @@ class Array(ProxySet, list):
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
         if val is NIL:
-            d = key - len(self.proxy) + 1
+            d = key - len(self._proxy) + 1
             if d < 0:
                 for i in range(d):
-                    del self.proxy[-1]
-            del self.proxy[key]
+                    del self._proxy[-1]
+            del self._proxy[key]
         else:
-            if key > len(self.proxy):
+            if key > len(self._proxy):
                 return
             val = marshall(val)
-            if key == len(self.proxy):
-                self.proxy.append(val)
+            if key == len(self._proxy):
+                self._proxy.append(val)
             else:
-                self.proxy[key] = val
+                self._proxy[key] = val
         if sync:
             self._shset(key + 1, val)
     append = notImplemented
@@ -246,48 +262,50 @@ class Array(ProxySet, list):
 class Args(Array):
     def __setitem__(self, key, val, sync=True):
         if val is NIL:
-            if key >= len(self.proxy):
+            if key >= len(self._proxy):
                 return
-            self.proxy[key] = NIL
+            self._proxy[key] = NIL
         else:
-            n = len(self.proxy)
+            n = len(self._proxy)
             if key == 'n':
                 val = marshall(val)
                 if val >= n:
-                    self.proxy.extend([NIL]*(val - n))
+                    self._proxy.extend([NIL]*(val - n))
                 if val < n:
-                    self.proxy[::] = self.proxy[:val]
+                    self._proxy[::] = self._proxy[:val]
             else:
                 key = marshall(key)
                 val = marshall(val)
                 if key > n:
-                    self.proxy.extend([NIL]*(key - n)+[val])
-                if key == len(self.proxy):
-                    self.proxy.append(val)
+                    self._proxy.extend([NIL]*(key - n)+[val])
+                if key == len(self._proxy):
+                    self._proxy.append(val)
                 else:   
-                    self.proxy[key] = val
+                    self._proxy[key] = val
         if sync:
             self._shset(key if key == 'n' else key + 1, val)
     def __getitem__(self, key):
-        return self.proxy[key]
+        return self._proxy[key]
 
 @proxyType
 class KWArgs(Table):
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
         val = marshall(val)
-        self.proxy[key] = val
+        self._proxy[key] = val
         if sync:
+            if isinstance(key, Number):
+                key = key + 1
             self._shset(key, val)
     def __getitem__(self, key):
-        return self.proxy[key]
+        return self._proxy[key]
 
 @proxyType
 @marshallType(_function)
 class Action(ProxyCall, _function):
     def __call__(self, *args):
-        if self.local:
-            self.proxy(*args)
+        if self._local:
+            self._proxy(*args)
         else:
             i = lookup[self]
             a = Args(args)
@@ -297,15 +315,20 @@ class Action(ProxyCall, _function):
 @proxyType
 class KWAction(Action):
     def __call__(self, *args, **kwargs):
-        if self.local:
-            self.proxy(*args, **kwargs)
+        if self._local:
+            self._proxy(*args, **kwargs)
         else:
             i = lookup[self]
-            a = Args((KWArgs(kwargs), *args))
+            a = dict(enumerate(args))
+            a.update(kwargs)
+            a = KWArgs(a)
             ai = lookup[a]
             Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
     def _call(self, args):
-        return self(*args[1:], **args[0])
+        kwargs = {k:v for k,v in args.items() if not isinstance(k,int) or k < 0}
+        n = 1+max((-1,)+tuple(k for k in args.keys() if k not in kwargs))
+        args = tuple(args[k] for k in range(n))
+        return self(*args, **kwargs)
 
 def marshaller(obj):
     if isinstance(obj,Proxy):
@@ -380,7 +403,7 @@ def handleDel(message):
     i = -int(message)
     obj = registry.get(i,None)
     if obj is not None:
-        obj.alive = False
+        obj._alive = False
         try:
             del lookup[obj]
         except KeyError:
