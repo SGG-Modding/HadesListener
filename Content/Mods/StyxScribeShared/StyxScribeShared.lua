@@ -349,7 +349,7 @@ function encode( v )
 	if t == "number" then return "#" .. tostring( v ) end
 	if m and m._proxy then return "@" .. tostring( lookup[ v ] ) end
 	if t == "boolean" then return v and "!!" or "!" end
-	if v == nil then return "*" end
+	if v == nil or v == NONE then return "*" end
 	error( tostring( v ) .. " cannot be encoded.", 2 )
 end
 
