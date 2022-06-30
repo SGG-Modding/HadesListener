@@ -415,4 +415,4 @@ def Load():
     Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
-    #Scribe.IgnorePrefixes.append("StyxScribeShared: ")
+    Scribe.IgnorePrefixes.append("StyxScribeShared: ")

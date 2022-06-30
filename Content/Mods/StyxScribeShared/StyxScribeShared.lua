@@ -261,7 +261,7 @@ local Args = marshallType( "table", typeCall( class( "Args", ProxySet, {
 	end
 } ), function( cls, ... ) return cls:_new( ... ) end ) )
 
-local KWArgs = marshallType( "table", class( "KWArgs", Table, {
+local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, {
 	__newindex = function( s, k, v, sync )
 		k, v = marshall( k ), marshall( v )
 		objectData[ s ][ "proxy" ][ k ] = { v }
@@ -270,7 +270,7 @@ local KWArgs = marshallType( "table", class( "KWArgs", Table, {
 			meta._shset( s, k, v )
 		end
 	end
-} ) )
+} ) ) )
 
 local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
 	__call = function( s, ... )
@@ -403,10 +403,11 @@ StyxScribeShared.Internal = ModUtil.UpValues( function( )
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode,
 		handleNew, handleSet, handleReset, handleAct, handleDel,
-		Table, Array, Args, Action
+		Table, Array, Args, Action, KWArgs, KWAction
 end )
 
-StyxScribeShared.Table, StyxScribeShared.Array, StyxScribeShared.Args, StyxScribeShared.Action = Table, Array, Args, Action
+StyxScribeShared.Table, StyxScribeShared.Array, StyxScribeShared.Args, StyxScribeShared.Action, StyxScribeShared.KWArgs, StyxScribeShared.KWAction
+	= Table, Array, Args, Action, KWArgs, KWAction
 
 StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
 StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
