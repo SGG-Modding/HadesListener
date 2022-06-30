@@ -14,6 +14,9 @@ local marshallTypesOrder = { }
 local function nop( ... ) return ... end
 
 local function typeCall( m, f )
+	local f = f or function( cls, ... )
+		return cls:_new( ... )
+	end
 	local mm = getmetatable( m ) or { }
 	mm.__call = f
 	return setmetatable( m, mm )
@@ -135,6 +138,9 @@ local ProxyCall = class( nil, Proxy, {
 	_newproxy = function( m )
 		return nop
 	end,
+	_call = function( s, args )
+		return s( table.unpack( objectData[ s ][ "proxy" ] ) )
+	end
 } )
 
 local Table = marshallType( "table", class( "Table", ProxySet, {
@@ -201,7 +207,7 @@ local Array = marshallType( "table", typeCall( class( "Array", ProxySet, {
 	__ipairs = function( s, ... )
 		return ipairs( objectData[ s ][ "proxy" ], ... )
 	end
-} ), function( cls, ... ) return cls:_new( ... ) end ) )
+} ) ) )
 
 local Args = marshallType( "table", typeCall( class( "Args", ProxySet, {
 	__newindex = function( s, k, v, sync )
@@ -255,10 +261,18 @@ local Args = marshallType( "table", typeCall( class( "Args", ProxySet, {
 	end
 } ), function( cls, ... ) return cls:_new( ... ) end ) )
 
+local KWArgs = marshallType( "table", class( "KWArgs", Table, {
+	__newindex = function( s, k, v, sync )
+		k, v = marshall( k ), marshall( v )
+		objectData[ s ][ "proxy" ][ k ] = { v }
+		local meta = getmetatable( s )
+		if sync == nil or sync then
+			meta._shset( s, k, v )
+		end
+	end
+} ) )
+
 local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
-	_marshall = function( s, f )
-		objectData[ s ][ "proxy" ] = f
-	end,
 	__call = function( s, ... )
 		if objectData[ s ][ "local" ] then
 			objectData[ s ][ "proxy" ]( ... )
@@ -269,7 +283,20 @@ local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
             print("StyxScribeShared: Act: " .. i .. delim .. ai)
 		end
 	end
-} ), function( cls, ... ) return cls:_new( ... ) end ) )
+} ) ) )
+
+local KWAction = typeCall( class( "KWAction", Action, { 
+	__call = function( s, kwargs, ... )
+		if objectData[ s ][ "local" ] then
+			objectData[ s ][ "proxy" ]( kwargs, ... )
+		else
+            local i = tostring( lookup[ s ] )
+            local a = new( Args, table.pack( new( KWArgs, kwargs ), ... ) )
+            local ai = tostring( lookup[ a ] )
+            print("StyxScribeShared: Act: " .. i .. delim .. ai)
+		end
+	end,
+} ) )
 
 --https://stackoverflow.com/a/33312901
 local function split( text, delim )
@@ -360,7 +387,7 @@ local function handleAct( message )
 	local func, args = table.unpack( split( message, delim ) )
     func = registry[ -tonumber( func ) ]
     args = registry[ -tonumber( args ) ]
-    func( table.unpack( objectData[ args ][ "proxy" ] ) )
+    getmetatable(func)._call( func, args )
 end
 
 local function handleReset( )
