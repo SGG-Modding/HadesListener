@@ -283,6 +283,7 @@ class KWArgs(Table):
         return self.proxy[key]
 
 @proxyType
+@marshallType(_function)
 class Action(ProxyCall, _function):
     def __call__(self, *args):
         if self.local:
@@ -294,7 +295,6 @@ class Action(ProxyCall, _function):
             Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
 
 @proxyType
-@marshallType(_function)
 class KWAction(Action):
     def __call__(self, *args, **kwargs):
         if self.local:

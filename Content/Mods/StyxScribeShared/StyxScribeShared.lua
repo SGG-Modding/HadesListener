@@ -140,7 +140,7 @@ local ProxyCall = class( nil, Proxy, {
 		return nop
 	end,
 	_call = function( s, args )
-		return s( table.unpack( objectData[ s ][ "proxy" ] ) )
+		return s( table.unpack( objectData[ args ][ "proxy" ] ) )
 	end
 } )
 
@@ -262,16 +262,7 @@ local Args = marshallType( "table", typeCall( class( "Args", ProxySet, {
 	end
 } ), function( cls, ... ) return cls:_new( ... ) end ) )
 
-local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, {
-	__newindex = function( s, k, v, sync )
-		k, v = marshall( k ), marshall( v )
-		objectData[ s ][ "proxy" ][ k ] = { v }
-		local meta = getmetatable( s )
-		if sync == nil or sync then
-			meta._shset( s, k, v )
-		end
-	end
-} ) ) )
+local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, { } ) ) )
 
 local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
 	__call = function( s, ... )
