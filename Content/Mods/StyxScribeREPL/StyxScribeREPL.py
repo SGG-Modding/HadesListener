@@ -10,7 +10,7 @@ import builtins
 def End():
     Scribe.Close(True)
 
-_globals = {**{"end":End,"End":End,"END":End},**{a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}}
+_globals = {a:b for a,b in builtins.__dict__.items() if not a.startswith('_')}
 _locals = None
 
 def RunLua(s):
@@ -39,8 +39,10 @@ def _run_py(s):
 def RunPython(s):
     global _locals
     if _locals is None:
-        _locals = dict(scribe.modules)
-        _locals["scribe"] = scribe
+        _locals = {"end":End,"End":End,"END":End}
+        _locals.update(dict(Scribe.modules))
+        _locals["scribe"] = Scribe
+        _locals["Scribe"] = Scribe
     s = s.lstrip()
     try:
         _run_py_eval(s, _globals, _locals)
