@@ -10,6 +10,7 @@ local marshall
 local classes = { }
 local marshallTypes = { }
 local marshallTypesOrder = { }
+local NONE = { }
 
 local function nop( ... ) return ... end
 
@@ -332,6 +333,7 @@ local function marshaller( obj )
 end
 
 function marshall( obj )
+    if obj == NONE then return nil end
     local m = marshaller( obj )
     if m then return new( m, obj ) end
     if type( obj ) == "string" then
@@ -403,11 +405,12 @@ StyxScribeShared.Internal = ModUtil.UpValues( function( )
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode,
 		handleNew, handleSet, handleReset, handleAct, handleDel,
-		Table, Array, Args, Action, KWArgs, KWAction
+		NONE, Table, Array, Args, Action, KWArgs, KWAction
 end )
 
-StyxScribeShared.Table, StyxScribeShared.Array, StyxScribeShared.Args, StyxScribeShared.Action, StyxScribeShared.KWArgs, StyxScribeShared.KWAction
-	= Table, Array, Args, Action, KWArgs, KWAction
+ModUtil.Table.Merge( StyxScribeShared, {
+	NONE = NONE, Table = Table, Array = Array, Action = Action, KWArgs = KWArgs, KWAction = KWAction
+} )
 
 StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
 StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
