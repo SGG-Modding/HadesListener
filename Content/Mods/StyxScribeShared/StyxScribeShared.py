@@ -6,6 +6,7 @@ from functools import wraps
 from threading import local as thread_local
 from types import MethodType
 
+_prefix = "StyxScribeShared:"
 proxyTypes = dict()
 marshallTypes = OrderedDict()
 DELIM = '¦'
@@ -117,7 +118,7 @@ class Proxy(metaclass=MetaOverrider):
         self._local = i > 0
         self._alive = True
         if self._local:
-            Scribe.Send(f"StyxScribeShared: New: {self.__class__.__name__}{DELIM}{i}")
+            Scribe.Send(_prefix, "New:", f"{self.__class__.__name__}{DELIM}{i}")
         if v is not None:
             self._marshall(v)
     def __hash__(self):
@@ -138,7 +139,7 @@ class Proxy(metaclass=MetaOverrider):
                 except KeyError:
                     pass
                 if self._local:
-                    Scribe.Send(f"StyxScribeShared: Del: {i}")
+                    Scribe.Send(_prefix, "Del:", f"{i}")
     def __getattribute__(self, name):
         if name in _meta_inherited[type(self)]:
             proxy = object.__getattribute__(self, "_proxy")
@@ -159,7 +160,7 @@ class ProxySet(Proxy):
             i = lookup[self]
             k = encode(key)
             v = encode(val)
-            Scribe.Send(f"StyxScribeShared: Set: {i}{DELIM}{k}{DELIM}{v}")
+            Scribe.Send(_prefix, "Set:", f"{i}{DELIM}{k}{DELIM}{v}")
     def __delitem__(self, key, sync=True):
         return self.__setitem__(key, NIL, sync)
     def __getitem__(self, key):
@@ -310,7 +311,7 @@ class Action(ProxyCall, _function):
             i = lookup[self]
             a = Args(args)
             ai = lookup[a]
-            Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+            Scribe.Send(_prefix, "Act:", f"{i}{DELIM}{ai}")
 
 @proxyType
 class KWAction(Action):
@@ -323,7 +324,7 @@ class KWAction(Action):
             a.update(kwargs)
             a = KWArgs(a)
             ai = lookup[a]
-            Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+            Scribe.Send(_prefix, "Act:", f"{i}{DELIM}{ai}")
     def _call(self, args):
         kwargs = {k:v for k,v in args.items() if not isinstance(k,int) or k < 0}
         n = 1+max((-1,)+tuple(k for k in args.keys() if k not in kwargs))
@@ -433,9 +434,9 @@ def handleReset(message=None):
     Root = Table(None, 0)
 
 def Load():
-    Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
-    Scribe.AddHook(handleNew, "StyxScribeShared: New: ", __name__)
-    Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
-    Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
-    Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
-    Scribe.IgnorePrefixes.append("StyxScribeShared: ")
+    Scribe.AddHook(handleReset, (_prefix, "Reset"), __name__)
+    Scribe.AddHook(handleNew, (_prefix, "New:"), __name__)
+    Scribe.AddHook(handleSet, (_prefix, "Set:"), __name__)
+    Scribe.AddHook(handleDel, (_prefix, "Del:"), __name__)
+    Scribe.AddHook(handleAct, (_prefix, "Act:"), __name__)
+    Scribe.IgnorePrefixes.append(_prefix)

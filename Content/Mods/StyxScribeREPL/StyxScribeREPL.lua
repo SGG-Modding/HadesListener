@@ -1,5 +1,7 @@
 ModUtil.Mod.Register( "StyxScribeREPL" )
 
+local prefix = "StyxScribeREPL:"
+
 StyxScribeREPL.Globals = { }
 StyxScribeREPL.Environment = setmetatable( { }, {
 	__index = function( _, k )
@@ -29,7 +31,7 @@ function StyxScribeREPL.RunLua( message )
 end
 
 function StyxScribeREPL.RunPython( message )
-	print("StyxScribeREPL: " .. message )
+	StyxScribe.Send( prefix, message )
 end
 
-StyxScribe.AddHook( StyxScribeREPL.RunLua, "StyxScribeREPL: ", StyxScribeREPL )
+StyxScribe.AddHook( StyxScribeREPL.RunLua, prefix, StyxScribeREPL )

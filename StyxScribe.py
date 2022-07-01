@@ -28,7 +28,11 @@ LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "StyxScribe: ACK"
 INTERNAL_IGNORE_PREFIXES = (PROXY_LOADED_PREFIX,)
-OUTPUT_FILE = "game_output.log" 
+OUTPUT_FILE = "game_output.log"
+PREFIX_LUA = "Lua:"
+PREFIX_ENGINE = "Engine:"
+PREFIX_INPUT = "In:"
+EXCLUDE_ENGINE = True
 
 #https://github.com/pallets/click/issues/2033#issue-960810534
 def make_sync(func):
@@ -105,8 +109,37 @@ class StyxScribe:
             True: self.executable_cwd_purepath / LUA_PROXY_TRUE
         }
         
+        self.delim = '\t'
+        self.prefix_lua = "Lua:"
+        self.raw_prefix = tuple()
+        
+        class _Hooks():
+            def __init__(s):
+                s._callbacks = list()
+                s._segments = defaultdict(Hooks)
+            def __iter__(s, *args):
+                return s._callbacks.__iter__(*args)
+            def __getitem__(s, key, *args):
+                if key is self.raw_prefix or isinstance(key, str):
+                    return s._segments.__getitem__(key, *args)
+                return s._callbacks.__getitem__(key, *args)
+            def __setitem__(s, key, *args):
+                if key is self.raw_prefix or isinstance(key, str):
+                    return s._segments.__setitem__(key, *args)
+                return s._callbacks.__setitem__(key, *args)
+            def __contains__(s, *args):
+                return s._callbacks.__contains__(*args)
+            def get(s, *args, **kwargs):
+                return s._segments.get(*args, **kwargs)
+            def keys(s, *args, **kwargs):
+                return s._segments.keys(*args, **kwargs)
+            def items(s, *args, **kwargs):
+                return s._segments.items(*args, **kwargs)
+            def values(s, *args, **kwargs):
+                return s._segments.values(*args, **kwargs)
+        
         self.args.insert(0, self.executable_purepath)
-        self.hooks = defaultdict(list)
+        self.hooks = _Hooks()
         self.modules = self.Modules()
         self.module = sys.modules[__name__]
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
@@ -125,13 +158,14 @@ class StyxScribe:
         self.Modules = self.modules
         self.AddOnRun = self.add_on_run
         self.AddOnCleanup = self.add_on_cleanup
+        self.RawPrefix = self.raw_prefix
 
     @property
     def Loop(self):
         return self.loop
 
-    def Send(self, message):
-        return self.send(message)
+    def Send(self, *message):
+        return self.send(*message)
 
     def close(self, abort=True):
         try:
@@ -178,10 +212,11 @@ class StyxScribe:
             #https://gist.github.com/tomschr/39734f0151a14187fd8f4844f66be6ba#file-asyncio-producer-consumer-task_done-py-L22
             while True:
                 message = await self.queue.get()
-
+                if not isinstance(message,str):
+                    message = self.delim.join(message)
                 with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
                     if echo and not message.startswith(tuple(self.ignore_prefixes)):
-                        print(f"In: {message}")
+                        print(PREFIX_INPUT, message)
                     file.write(f",{sane(message)}")
                     file.flush()
 
@@ -191,7 +226,7 @@ class StyxScribe:
             await self.queue.put(message)
             await self.queue.join()
 
-        self.send = lambda msg: asyncio.run_coroutine_threadsafe(send(msg),self.loop)
+        self.send = lambda *msg: asyncio.run_coroutine_threadsafe(send(msg),self.loop)
 
         @make_sync
         async def run(out=None):
@@ -217,16 +252,30 @@ class StyxScribe:
                     if not output:
                         break
                     output = output[:-1]
+                    luaprefix = self.prefix_lua + self.delim
+                    luaoutput = output.startswith(luaprefix)
+                    if luaoutput:
+                        output = output[len(luaprefix):]
+                    elif EXCLUDE_ENGINE:
+                        continue
                     if not output.startswith(tuple(self.ignore_prefixes)):
+                        _output = (luaprefix if luaoutput else PREFIX_ENGINE + self.delim) + output
                         if echo:
-                            print(f"Out: {output}")
+                            print(_output)
                         if out:
-                            print(output, file=out)
+                            print(_output, file=out)
                             out.flush()
-
                     if output.startswith(PROXY_LOADED_PREFIX):
                         setup_proxies()
 
+                    _output = output.split(self.delim)
+                    hooks = self.hooks
+                    while _output:
+                        last = _output[0]
+                        hooks = hooks[last]
+                        _output = _output[1:]
+                        if last is self.raw_prefix:
+                        
                     for prefix, callbacks in self.hooks.items():
                         if output.startswith(prefix):
                             for callback in callbacks:
@@ -278,7 +327,7 @@ class StyxScribe:
             callback = f"{callback} from {source}"
         print(f"Adding hook to game cleanup with {callback}")
 
-    def add_hook(self, callback, prefix="", source=None):
+    def add_hook(self, callback, prefix=None, source=None):
         """Add a target function to be called when pattern is detected
 
         Parameters
@@ -287,18 +336,35 @@ class StyxScribe:
             function to call when pattern is detected
         prefix : str
             pattern to look for at the start of lines in stdout
-        """
-        if callback in self.hooks[prefix]:
-            return  # Function already hooked
+        """        
+        
         if not callable(callback):
             if source is not None:
                 raise TypeError("Callback must be callable, blame {source}.")
             else:
                 raise TypeError("Callback must be callable.")
+        
+        _prefix = prefix
+        if isinstance(_prefix,str):
+            _prefix = f'"{_prefix}"'
+        if prefix is None:
+            prefix = (self.raw_prefix,)
+        elif isinstance(prefix,str):
+            prefix = prefix.split(self.delim)
+        
+        hooks = self.hooks
+        while prefix:
+            last = prefix[0]
+            hooks = hooks[last]
+            prefix = prefix[1:]
+            if last is self.raw_prefix:
+                break
+        if callback in hooks:
+            return  # Function already hooked
         self.hooks[prefix].append(callback)
         if source is not None:
             callback = f"{callback} from {source}"
-        print(f"Adding hook on \"{prefix}\" with {callback}")
+        print(f"Adding hook on {_prefix} with {callback}")
 
     def load_plugins(self):
         modules = OrderedDict()

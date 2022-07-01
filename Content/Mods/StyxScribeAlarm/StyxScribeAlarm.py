@@ -6,6 +6,7 @@ import sys
 _duration = 1
 _pitch = 440
 _runtime = None
+_prefix = "StyxScribeAlarm:"
 
 class _PingThread(threading.Thread):
     #repuposed from https://stackoverflow.com/a/57387909
@@ -15,7 +16,7 @@ class _PingThread(threading.Thread):
 
     def run(self):
         while True:
-            Scribe.Send("StyxScribeAlarm: Ping")
+            Scribe.Send(_prefix, "Ping")
             time.sleep(10)
 
 def _onrun():
@@ -30,5 +31,5 @@ def _alarm(message=None):
 def Load():
     #start the Keyboard thread
     Scribe.AddOnRun(_onrun, __name__)
-    Scribe.AddHook(_alarm, "StyxScribeAlarm: Alarm", __name__)
-    Scribe.IgnorePrefixes.append("StyxScribeAlarm: ")
+    Scribe.AddHook(_alarm, (_prefix, "Alarm"), __name__)
+    Scribe.IgnorePrefixes.append(_prefix)

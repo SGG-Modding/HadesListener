@@ -1,10 +1,11 @@
 ModUtil.Mod.Register( "StyxScribeAlarm" )
 
 local runTime = _screenTime
+local prefix = "StyxScribeAlarm:"
 
 local function alarm()
 	StyxScribe.Internal.debugMode = true
-	print( "StyxScribeAlarm: Alarm" )
+	StyxScribe.Send( prefix, "Alarm" )
 	print( "StyxScribe is unresponsive! (" .. _screenTime - runTime .. ")" )
 end
 
@@ -28,5 +29,5 @@ StyxScribeAlarm.Internal = ModUtil.UpValues( function( )
 	return alarm, buffer, doBuffer, checkBuffer
 end )
 
-StyxScribe.AddHook( doBuffer, "StyxScribeAlarm: Ping", StyxScribeAlarm )
+StyxScribe.AddHook( doBuffer, { prefix, "Ping" }, StyxScribeAlarm )
 thread( checkBuffer )

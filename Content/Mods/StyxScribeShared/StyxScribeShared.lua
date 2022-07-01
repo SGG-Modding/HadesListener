@@ -1,6 +1,7 @@
 ModUtil.Mod.Register( "StyxScribeShared" )
 
 local delim = '¦'
+local prefix = "StyxScribeShared:"
 local registry
 local lookup
 local objectData
@@ -86,7 +87,7 @@ local Proxy = {
 			lookup[ s ] = nil
 			if i ~= 0 then
 				registry[ i ] = nil
-				print( "StyxScribeShared: Del: " .. tostring( i ) )
+				StyxScribe.Send( prefix, "Del:", tostring( i ) )
 			end
 		end
 		
@@ -106,7 +107,7 @@ local Proxy = {
 		objectData[ s ][ "root" ] = i == 0
 		objectData[ s ][ "local" ] = i > 0
 		if objectData[ s ][ "local" ] then
-			print( "StyxScribeShared: New: " .. meta._name .. delim .. i )
+			StyxScribe.Send( prefix, "New:", meta._name .. delim .. i )
 		end
 		if v then
 			meta._marshall( s, v )
@@ -120,7 +121,7 @@ local ProxySet = class( nil, Proxy, {
 		local i = tostring( lookup[ s ] )
 		k = encode( k )
 		v = encode( v )
-		print( "StyxScribeShared: Set: " .. i .. delim .. k .. delim .. v )
+		StyxScribe.Send( prefix, "Set:", i .. delim .. k .. delim .. v )
 	end,
 	_marshall = function( s, obj )
 		for k, v in pairs( obj ) do
@@ -284,7 +285,7 @@ local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
             local i = tostring( lookup[ s ] )
             local a = new( Args, table.pack( ... ) )
             local ai = tostring( lookup[ a ] )
-            print("StyxScribeShared: Act: " .. i .. delim .. ai)
+            StyxScribe.Send( prefix, "Act:",  i .. delim .. ai )
 		end
 	end
 } ) ) )
@@ -297,7 +298,7 @@ local KWAction = typeCall( class( "KWAction", Action, {
             local i = tostring( lookup[ s ] )
             local a = new( KWArgs, kwargs )
             local ai = tostring( lookup[ a ] )
-            print("StyxScribeShared: Act: " .. i .. delim .. ai)
+            StyxScribe.Send( prefix, "Act:", i .. delim .. ai )
 		end
 	end,
 	_call = function( s, args )
@@ -403,7 +404,7 @@ local function handleReset( )
 	lookup = setmetatable( { }, { __mode = "k" } )
 	objectData = setmetatable( { }, { __mode = "k" } )
 	StyxScribeShared.Root = new( Table, nil, 0 )
-	print( "StyxScribeShared: Reset" )
+	StyxScribe.Send( prefix, "Reset" )
 end
 
 StyxScribeShared.Internal = ModUtil.UpValues( function( )
@@ -418,8 +419,8 @@ ModUtil.Table.Merge( StyxScribeShared, {
 	NONE = NONE, Table = Table, Array = Array, Action = Action, KWArgs = KWArgs, KWAction = KWAction
 } )
 
-StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
-StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
-StyxScribe.AddHook( handleDel, "StyxScribeShared: Del: ", StyxScribeShared )
-StyxScribe.AddHook( handleAct, "StyxScribeShared: Act: ", StyxScribeShared )
+StyxScribe.AddHook( handleNew, { prefix, "New:" }, StyxScribeShared )
+StyxScribe.AddHook( handleSet, { prefix, "Set:" }, StyxScribeShared )
+StyxScribe.AddHook( handleDel, { prefix, "Del:" }, StyxScribeShared )
+StyxScribe.AddHook( handleAct, { prefix, "Act:" }, StyxScribeShared )
 handleReset( )

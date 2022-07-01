@@ -7,6 +7,9 @@ from io import StringIO
 from traceback import format_exception_only
 import builtins
 
+_prefix = "StyxScribeREPL:"
+_prefix_py = "Py:"
+
 def End():
     Scribe.Close(True)
 
@@ -32,7 +35,7 @@ def _run_py(s):
     _stdout.flush()
     io = _stdout.getvalue()
     if '\n' in io:
-        print("".join(("\nPy: "+s for s in io.split('\n')[:-1]))[1:])
+        print("".join((f"\n{_prefix_py} "+s for s in io.split('\n')[:-1]))[1:])
     else:
         print(io,end='')
 
@@ -79,5 +82,5 @@ def evaluate(inp):
 def Load():
     #start the Keyboard thread
     Scribe.AddOnRun(lambda: KeyboardThread(evaluate), __name__)
-    Scribe.AddHook(_run_py, "StyxScribeREPL: ", __name__)
-    Scribe.IgnorePrefixes.append("StyxScribeREPL: ")
+    Scribe.AddHook(_run_py, _prefix, __name__)
+    Scribe.IgnorePrefixes.append(_prefix)
