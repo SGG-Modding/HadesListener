@@ -267,22 +267,29 @@ class StyxScribe:
                             out.flush()
                     if output.startswith(PROXY_LOADED_PREFIX):
                         setup_proxies()
-
-                    _output = output.split(self.delim)
+                        
+                    async def _callpromise(callback, message)
+                        try:
+                            await callpromise(callback, message)
+                        except Exception:
+                            traceback.print_exc(file=sys.stdout)
+                        return
+                    
+                    message = output
                     hooks = self.hooks
-                    while _output:
+                    while message:
+                        for callback in hooks[self.raw_prefix]:
+                            await _callpromise(callback, message)
+                        _output = message.split(self.delim,1)
                         last = _output[0]
                         hooks = hooks[last]
-                        _output = _output[1:]
-                        if last is self.raw_prefix:
-                        
-                    for prefix, callbacks in self.hooks.items():
-                        if output.startswith(prefix):
-                            for callback in callbacks:
-                                try:
-                                    await callpromise(callback, output[len(prefix):])
-                                except Exception:
-                                    traceback.print_exc(file=sys.stdout)
+                        if len(_output) > 1:
+                            message = _output[1]
+                        else:
+                            message = None
+                        for callback in hooks:
+                            await callcallback(callback, message)
+
             except KeyboardInterrupt:
                 pass
 
