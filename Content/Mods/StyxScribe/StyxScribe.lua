@@ -84,8 +84,9 @@ local function handle( valid, file, ... )
 end
 
 local function poll( )
-	local file = "proxy_stdin.txt"
+	local file
 	while true do
+		file = file or "proxy_stdin.txt"
 		if debugMode then print( "StyxScribe: Polling...", file, _screenTime ) end
 		local valid, nextfile = handle( pcall( dofile, file ) )
 		if valid then file = nextfile end
