@@ -7,6 +7,8 @@ from io import StringIO
 from traceback import format_exception_only
 import builtins
 
+_prefix_py = "Py:\t"
+
 def End():
     Scribe.Close(True)
 
@@ -32,7 +34,7 @@ def _run_py(s):
     _stdout.flush()
     io = _stdout.getvalue()
     if '\n' in io:
-        print("".join(("\nPy: "+s for s in io.split('\n')[:-1]))[1:])
+        print("".join((f"\n{_prefix_py}"+s for s in io.split('\n')[:-1]))[1:])
     else:
         print(io,end='')
 

@@ -28,7 +28,11 @@ LUA_PROXY_FALSE = "proxy_first.txt"
 LUA_PROXY_TRUE = "proxy_second.txt"
 PROXY_LOADED_PREFIX = "StyxScribe: ACK"
 INTERNAL_IGNORE_PREFIXES = (PROXY_LOADED_PREFIX,)
-OUTPUT_FILE = "game_output.log" 
+OUTPUT_FILE = "game_output.log"
+PREFIX_LUA = "Lua:\t"
+PREFIX_ENGINE = "Engine:\t"
+PREFIX_INPUT = "In:\t"
+EXCLUDE_ENGINE = True
 
 #https://github.com/pallets/click/issues/2033#issue-960810534
 def make_sync(func):
@@ -178,10 +182,9 @@ class StyxScribe:
             #https://gist.github.com/tomschr/39734f0151a14187fd8f4844f66be6ba#file-asyncio-producer-consumer-task_done-py-L22
             while True:
                 message = await self.queue.get()
-
                 with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
                     if echo and not message.startswith(tuple(self.ignore_prefixes)):
-                        print(f"In: {message}")
+                        print(PREFIX_INPUT, message)
                     file.write(f",{sane(message)}")
                     file.flush()
 
@@ -217,13 +220,18 @@ class StyxScribe:
                     if not output:
                         break
                     output = output[:-1]
+                    luaoutput = output.startswith(PREFIX_LUA)
+                    if luaoutput:
+                        output = output[len(PREFIX_LUA):]
+                    elif EXCLUDE_ENGINE:
+                        continue
                     if not output.startswith(tuple(self.ignore_prefixes)):
+                        _output = (PREFIX_LUA if luaoutput else PREFIX_ENGINE + self.delim) + output
                         if echo:
-                            print(f"Out: {output}")
+                            print(_output)
                         if out:
-                            print(output, file=out)
+                            print(_output, file=out)
                             out.flush()
-
                     if output.startswith(PROXY_LOADED_PREFIX):
                         setup_proxies()
 
@@ -278,7 +286,7 @@ class StyxScribe:
             callback = f"{callback} from {source}"
         print(f"Adding hook to game cleanup with {callback}")
 
-    def add_hook(self, callback, prefix="", source=None):
+    def add_hook(self, callback, prefix, source=None):
         """Add a target function to be called when pattern is detected
 
         Parameters

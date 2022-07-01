@@ -4,7 +4,7 @@ local runTime = _screenTime
 
 local function alarm()
 	StyxScribe.Internal.debugMode = true
-	print( "StyxScribeAlarm: Alarm" )
+	StyxScribe.Send( "StyxScribeAlarm: Alarm" )
 	print( "StyxScribe is unresponsive! (" .. _screenTime - runTime .. ")" )
 end
 

@@ -3,9 +3,25 @@ ModUtil.Mod.Register("StyxScribe")
 local hooks = { }
 local pollPeriod = 0.25
 local pollDelay = 0.01
-local print, pcall, loadfile, select, rawipairs, rawpairs, yield = print, pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
+local prefixLua = "Lua:"
+local prefixDebugPrint = "DebugPrint: "
+local prefixDebugAssert = "DebugAssert: "
+local prefixStyxScribe = "StyxScribe: "
+local proxyFile = "proxy_stdin.txt"
+local showDebugPrint = false
+local showDebugAssert = false
 
-print( "StyxScribe: Lua Refreshed!" )
+ModUtil.Path.Wrap( "print", function( base, ... )
+	return base( prefixLua, ... )
+end, StyxScribe )
+
+local pcall, loadfile, select, rawipairs, rawpairs, yield =
+	pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
+
+local send = print
+StyxScribe.Send = send
+
+send( prefixStyxScribe .. "Lua Refreshed!" )
 
 local function startswith( s, p )
 	local i = 1
@@ -51,12 +67,13 @@ function StyxScribe.AddHook( callback, prefix, source )
 	local base = hooks[ prefix ] or { }
 	table.insert( base, callback )
 	hooks[ prefix ] = base
-	print( "StyxScribe: Adding hook on \"" .. prefix .. "\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
+	send( prefixStyxScribe .. "Adding hook on \"" .. prefix .. 
+		"\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
 end
 
 local function notify( ... )
 	for _, message in vararg( ... ) do
-		--print( "StyxScribe: Received: " .. message )
+		if debugMode then send( prefixStyxScribe .. "Received: " .. message ) end
 		for prefix, callbacks in rawpairs( hooks ) do
 			local tail = startswith( message, prefix )
 			if tail then
@@ -86,8 +103,8 @@ end
 local function poll( )
 	local file
 	while true do
-		file = file or "proxy_stdin.txt"
-		if debugMode then print( "StyxScribe: Polling...", file, _screenTime ) end
+		file = file or proxyFile
+		if debugMode then send( prefixStyxScribe .. "Polling...", file, _screenTime ) end
 		local valid, nextfile = handle( pcall( dofile, file ) )
 		if valid then file = nextfile end
 		yield( waitArgs )
@@ -97,26 +114,30 @@ thread( poll )
 
 local function poke( )
 	waitScreenTime( pollDelay )
-	return print( "StyxScribe: Polling..." )
+	return send( prefixStyxScribe .. "Polling..." )
 end
 thread( poke )
 
-
 if DebugAssert then
-	ModUtil.Path.Wrap( "DebugAssert", function( base, args )
-		if not args.Condition then print( "DebugAssert: " .. args.Text ) end
-		return base( args )
+	ModUtil.Path.Wrap( "DebugAssert", function( base, args, ... )
+		if showDebugAssert and not args.Condition then
+			send( prefixDebugAssert .. args.Text )
+		end
+		return base( args, ... )
 	end, StyxScribe )
 end
 
 if DebugPrint then
-	ModUtil.Path.Wrap( "DebugPrint", function( base, args )
-		print( "DebugPrint: " .. args.Text )
-		return base( args )
+	ModUtil.Path.Wrap( "DebugPrint", function( base, args, ... )
+		if showDebugPrint then 
+			send( prefixDebugPrint .. args.Text )
+		end
+		return base( args, ... )
 	end, StyxScribe )
 end
 
 StyxScribe.Internal = ModUtil.UpValues( function( )
-	return debugMode, pollDelay, pollPeriod, notify,
+	return debugMode, pollDelay, pollPeriod, notify, proxyFile, showDebugPrint, showDebugAssert,
+		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixStyxScribe,
 		startswith, vararg, hooks, poke, poll, handle, waitArgs
 end )
