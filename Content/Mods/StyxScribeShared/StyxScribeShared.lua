@@ -430,7 +430,7 @@ ModUtil.Table.Merge( StyxScribeShared, {
 	NONE = NONE, Table = Table, Array = Array, Action = Action, KWArgs = KWArgs, KWAction = KWAction
 } )
 
-StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset ", StyxScribeShared )
+StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )
 StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
 StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
 StyxScribe.AddHook( handleDel, "StyxScribeShared: Del: ", StyxScribeShared )

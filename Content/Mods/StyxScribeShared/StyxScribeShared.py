@@ -433,6 +433,7 @@ def handleReset(message=None):
         lookup.clear()
     lookup = WeakKeyDictionary()
     Root = Table(None, 0)
+    Scribe.Send("StyxScribeShared: Reset")
 
 def Load():
     Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
