@@ -125,6 +125,8 @@ class Proxy(metaclass=MetaOverrider):
     def __repr__(self):
         return repr(self._proxy)
     def __del__(self):
+        if lookup is None:
+            return
         i = lookup.get(self,None)
         if i is not None:
             self._alive = False
