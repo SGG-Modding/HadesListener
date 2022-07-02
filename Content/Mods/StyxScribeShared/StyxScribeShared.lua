@@ -115,6 +115,11 @@ local Proxy = {
 			meta._marshall( s, v )
 		end
 		return s
+	end,
+	__tostring = function( s )
+		local name = objectData[ s ][ "name" ]
+		name = name and name .. ':' or ""
+		return name .. getmetatable( s )._name .. ':' .. ModUtil.ToString.Address( s ) 
 	end
 }
 
@@ -405,6 +410,17 @@ local function handleAct( message )
     getmetatable(func)._call( func, args )
 end
 
+local function handleName( message )
+	if not ready then return end
+	local id, name = table.unpack( split( message, delim ) )
+	local obj = registry[ -tonumber( id ) ]
+	objectData[ obj ][ "name" ] = decode( name )
+end
+
+local function handlePyReset( )
+	ready = true
+end
+
 local function handleLuaReset( )
 	ready = false
 	registry = { }
@@ -414,15 +430,21 @@ local function handleLuaReset( )
 	StyxScribe.Send( "StyxScribeShared: Reset" )
 end
 
-local function handlePyReset( )
-	ready = true
+function StyxScribeShared.SetName( proxy, name )
+	objectData[ proxy ][ "name" ] = name
+	local id = tostring( lookup[ proxy ] )
+	StyxScribe.Send( "StyxScribeShared: Name: " .. id .. delim .. encode( name ) )
+end
+
+function StyxScribeShared.GetName( proxy )
+	return objectData[ obj ][ "name" ]
 end
 
 StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, delim, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
-		handleNew, handleSet, handleReset, handleAct, handleDel,
+		handleNew, handleSet, handleReset, handleAct, handleDel, handlePyReset, handleName,
 		NONE, Table, Array, Args, Action, KWArgs, KWAction
 end )
 
@@ -431,6 +453,7 @@ ModUtil.Table.Merge( StyxScribeShared, {
 } )
 
 StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )
+StyxScribe.AddHook( handleName, "StyxScribeShared: Name: ", StyxScribeShared )
 StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
 StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
 StyxScribe.AddHook( handleDel, "StyxScribeShared: Del: ", StyxScribeShared )

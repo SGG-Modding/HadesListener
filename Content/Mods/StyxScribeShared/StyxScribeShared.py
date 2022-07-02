@@ -66,6 +66,16 @@ class MetaOverrider(type):
                 continue
             setattr(cls, name, _meta_wrap(name, magic_method))
 
+def _address(obj):
+    s = ['0'] * 16
+    h = hex(id(obj))[2:].upper()
+    s[-len(h):] = h
+    return "0x" + ''.join(s)
+    
+def _repr(obj, name=None):
+    mid = f" {name}" if name is not None else ""
+    return f"<{obj.__class__.__qualname__}{mid} at {_address(obj)}>"
+
 def nop():
     pass
 
@@ -123,7 +133,9 @@ class Proxy(metaclass=MetaOverrider):
     def __hash__(self):
         return hash(id(self))
     def __repr__(self):
-        return repr(self._proxy)
+        if hasattr(self,"_name"):
+            return _repr(self, self._name)
+        return _repr(self)
     def __del__(self):
         if lookup is None:
             return
@@ -156,12 +168,15 @@ class Proxy(metaclass=MetaOverrider):
         return object.__getattribute__(self, name)       
 
 class ProxySet(Proxy):
+    _repr = False
     def _shset(self, key, val):
         if self._alive:
             i = lookup[self]
             k = encode(key)
             v = encode(val)
             Scribe.Send(f"StyxScribeShared: Set: {i}{DELIM}{k}{DELIM}{v}")
+    def __repr__(self):
+        return repr(self._proxy)
     def __delitem__(self, key, sync=True):
         return self.__setitem__(key, NIL, sync)
     def __getitem__(self, key):
@@ -171,9 +186,11 @@ class ProxySet(Proxy):
             return NIL
 
 class ProxyCall(Proxy):
+    _repr = True
     def _marshall(self, obj):
         if callable(obj):
             self._proxy = obj
+            SetName(self, obj.__name__)
         else:
             raise TypeError(f"{type(self)} cannot marshall type {type(obj)}")
     def _call(self, args):
@@ -396,8 +413,6 @@ def handleSet(message):
     except KeyError:
         return
     k = decode(k)
-    if v[:1] == '&':
-        v = v[:-1]
     v = decode(v)
     s.__setitem__(k, v, False)
 
@@ -422,6 +437,11 @@ def handleAct(message):
     args = registry[-int(args)]
     func._call(args)
 
+def handleName(message):
+    obj, name = message.split(DELIM)
+    obj = registry[-int(obj)]
+    obj._name = decode(name)
+
 def handleReset(message=None):
     global registry
     global lookup
@@ -435,8 +455,18 @@ def handleReset(message=None):
     Root = Table(None, 0)
     Scribe.Send("StyxScribeShared: Reset")
 
+def SetName(proxy,name):
+    proxy._name = name
+    i = lookup[proxy]
+    name = encode(name)
+    Scribe.Send(f"StyxScribeShared: Name: {i}{DELIM}{name}")
+
+def GetName(proxy):
+    return proxy._name
+
 def Load():
     Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
+    Scribe.AddHook(handleName, "StyxScribeShared: Name: ", __name__)
     Scribe.AddHook(handleNew, "StyxScribeShared: New: ", __name__)
     Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)

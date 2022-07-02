@@ -216,10 +216,19 @@ class StyxScribe:
 
             try:
                 while self.game.returncode is None:
-                    output = (await self.game.stdout.readline()).decode()
+                    try:
+                        output = (await self.game.stdout.readline()).decode()
+                    except ValueError:
+                        message = "Error: Line too long to process."
+                        if echo:
+                            print(message)
+                        if out:
+                            print(message, file=out)
+                            out.flush()
+                        continue
                     if not output:
                         break
-                    output = output[:-1]
+                    output = output.rstrip("\r\n")
                     luaoutput = output.startswith(PREFIX_LUA)
                     if luaoutput:
                         output = output[len(PREFIX_LUA):]
