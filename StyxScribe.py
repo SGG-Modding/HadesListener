@@ -235,7 +235,7 @@ class StyxScribe:
                     elif EXCLUDE_ENGINE:
                         continue
                     if not output.startswith(tuple(self.ignore_prefixes)):
-                        _output = (PREFIX_LUA if luaoutput else PREFIX_ENGINE + self.delim) + output
+                        _output = (PREFIX_LUA if luaoutput else PREFIX_ENGINE) + output
                         if echo:
                             print(_output)
                         if out:

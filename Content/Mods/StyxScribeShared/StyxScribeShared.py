@@ -303,6 +303,8 @@ class Args(Array):
                     self._proxy[key] = val
         if sync:
             self._shset(key if key == 'n' else key + 1, val)
+    def __iter__(self):
+        return iter(self._proxy)
     def __getitem__(self, key):
         return self._proxy[key]
 

@@ -148,7 +148,7 @@ local ProxyCall = class( nil, Proxy, {
 		return nop
 	end,
 	_call = function( s, args )
-		return s( table.unpack( objectData[ args ][ "proxy" ] ) )
+		return s( table.unpack( args ) )
 	end
 } )
 
@@ -309,7 +309,7 @@ local KWAction = typeCall( class( "KWAction", Action, {
 		end
 	end,
 	_call = function( s, args )
-		return s( ModUtil.Table.Copy( objectData[ args ][ "proxy" ] ) )
+		return s( args )
 	end
 } ) )
 
