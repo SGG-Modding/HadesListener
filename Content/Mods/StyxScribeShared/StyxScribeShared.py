@@ -6,6 +6,8 @@ from functools import wraps
 from threading import local as thread_local
 from types import MethodType
 
+ShowTableAddrs = False
+
 proxyTypes = dict()
 marshallTypes = OrderedDict()
 DELIM = '¦'
@@ -66,15 +68,22 @@ class MetaOverrider(type):
                 continue
             setattr(cls, name, _meta_wrap(name, magic_method))
 
-def _address(obj):
+def _shortAddress(obj):
+    return hex(id(obj))[2:].upper()
+
+def _longAddress(obj):
     s = ['0'] * 16
-    h = hex(id(obj))[2:].upper()
+    h = _shortAddress(obj)
     s[-len(h):] = h
-    return "0x" + ''.join(s)
-    
-def _repr(obj, name=None):
+    return "0x" + "".join(s)
+
+def _shortRepr(obj, name=None):
     mid = f" {name}" if name is not None else ""
-    return f"<{obj.__class__.__qualname__}{mid} at {_address(obj)}>"
+    return f"<{obj.__class__.__name__}{mid}: {_shortAddress(obj)}>"
+
+def _longRepr(obj, name=None):
+    mid = f" {name}" if name is not None else ""
+    return f"<{obj.__class__.__qualname__}{mid} at {_longAddress(obj)}>"
 
 def nop():
     pass
@@ -134,8 +143,8 @@ class Proxy(metaclass=MetaOverrider):
         return hash(id(self))
     def __repr__(self):
         if hasattr(self,"_name"):
-            return _repr(self, self._name)
-        return _repr(self)
+            return _shortRepr(self, self._name)
+        return _shortRepr(self)
     def __del__(self):
         if lookup is None:
             return
@@ -176,7 +185,7 @@ class ProxySet(Proxy):
             v = encode(val)
             Scribe.Send(f"StyxScribeShared: Set: {i}{DELIM}{k}{DELIM}{v}")
     def __repr__(self):
-        return repr(self._proxy)
+        return (Proxy.__repr__(self) if ShowTableAddrs else "")  + repr(self._proxy)
     def __delitem__(self, key, sync=True):
         return self.__setitem__(key, NIL, sync)
     def __getitem__(self, key):

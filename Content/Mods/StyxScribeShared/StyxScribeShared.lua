@@ -118,8 +118,8 @@ local Proxy = {
 	end,
 	__tostring = function( s )
 		local name = objectData[ s ][ "name" ]
-		name = name and name .. ':' or ""
-		return name .. getmetatable( s )._name .. ':' .. ModUtil.ToString.Address( s ) 
+		name = name and name .. ': ' or ""
+		return name .. getmetatable( s )._name .. ': ' .. ModUtil.ToString.Address( s ) 
 	end
 }
 

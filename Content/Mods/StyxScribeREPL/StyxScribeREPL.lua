@@ -16,6 +16,10 @@ StyxScribeREPL.Environment = setmetatable( { }, {
 	end
 } )
 
+local function toString( obj )
+	return ModUtil.ToString.Deep( obj, 500 )
+end
+
 function StyxScribeREPL.RunLua( message )
 	local func, err = load( "return " .. message )
 	if not func then
@@ -25,11 +29,15 @@ function StyxScribeREPL.RunLua( message )
 	setfenv( func, StyxScribeREPL.Environment )
 	local ret = table.pack( pcall( func ) )
 	if ret.n <= 1 then return end
-	return print( ModUtil.Args.Map( ModUtil.ToString.Shallow, table.unpack( ret, 2, ret.n ) ) )
+	return print( ModUtil.Args.Map( toString, table.unpack( ret, 2, ret.n ) ) )
 end
 
 function StyxScribeREPL.RunPython( message )
 	print("StyxScribeREPL: " .. message )
 end
+
+StyxScribeREPL.Internal = ModUtil.UpValues( function( )
+	return toString
+end )
 
 StyxScribe.AddHook( StyxScribeREPL.RunLua, "StyxScribeREPL: ", StyxScribeREPL )
