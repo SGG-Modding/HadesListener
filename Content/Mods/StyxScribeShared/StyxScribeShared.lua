@@ -149,7 +149,7 @@ local ProxyCall = class( nil, Proxy, {
 	end
 } )
 
-local Table = marshallType( "table", class( "Table", ProxySet, {
+local Table = marshallType( "table", typeCall( class( "Table", ProxySet, {
 	__newindex = function( s, k, v, sync )
 		k, v = marshall( k ), marshall( v )
 		objectData[ s ][ "proxy" ][ k ] = v
@@ -176,7 +176,7 @@ local Table = marshallType( "table", class( "Table", ProxySet, {
 	__ipairs = function( s, ... )
 		return ipairs( objectData[ s ][ "proxy" ], ... )
 	end
-} ) )
+} ) ) )
 
 local Array = marshallType( "table", typeCall( class( "Array", ProxySet, {
 	__newindex = function( s, k, v, sync )
