@@ -146,9 +146,6 @@ local ProxyCall = class( nil, Proxy, {
 	end,
 	_newproxy = function( m )
 		return nop
-	end,
-	_call = function( s, args )
-		return s( table.unpack( args ) )
 	end
 } )
 
@@ -287,30 +284,57 @@ local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, {
 local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
 	__call = function( s, ... )
 		if objectData[ s ][ "local" ] then
-			objectData[ s ][ "proxy" ]( ... )
-		else
-            local i = tostring( lookup[ s ] )
-            local a = new( Args, table.pack( ... ) )
-            local ai = tostring( lookup[ a ] )
-            StyxScribe.Send( "StyxScribeShared: Act: " .. i .. delim .. ai )
+			return objectData[ s ][ "proxy" ]( ... )
 		end
+		local i = tostring( lookup[ s ] )
+		local a = Args( table.pack( ... ) )
+		local ai = tostring( lookup[ a ] )
+		StyxScribe.Send( "StyxScribeShared: Act: " .. i .. delim .. ai )
+	end,
+	_call = function( s, args )
+		return s( table.unpack( args ) )
 	end
 } ) ) )
 
 local KWAction = typeCall( class( "KWAction", Action, { 
 	__call = function( s, kwargs )
 		if objectData[ s ][ "local" ] then
-			objectData[ s ][ "proxy" ]( kwargs )
-		else
-            local i = tostring( lookup[ s ] )
-            local a = new( KWArgs, kwargs )
-            local ai = tostring( lookup[ a ] )
-            StyxScribe.Send( "StyxScribeShared: Act: " .. i .. delim .. ai )
+			return objectData[ s ][ "proxy" ]( kwargs )
 		end
+		local i = tostring( lookup[ s ] )
+		local a = KWArgs( kwargs )
+		local ai = tostring( lookup[ a ] )
+		StyxScribe.Send( "StyxScribeShared: Act: " .. i .. delim .. ai )
 	end,
 	_call = function( s, args )
 		return s( args )
 	end
+} ) )
+
+local Relay = typeCall( class( "Relay", Action, {
+	__call = function( s, call, ... )
+		local _call = getmetatable( s )._parents[ 1 ].__call
+		if objectData[ s ][ "local" ] then
+			return call( _call( s, ... ) )
+		end
+		return _call( s, call, ... )
+	end
+} ) )
+
+local KWRelay = typeCall( class( "KWRelay", KWAction, { 
+	__call = function( s, kwargs )
+		local _call = getmetatable( s )._parents[ 1 ].__call
+		if objectData[ s ][ "local" ] then
+			local call = kwargs[ 1 ]
+			local n = #kwargs
+			kwargs = KWArgs( kwargs )
+			for i = 1, n, 1 do
+				kwargs[ i ] = kwargs[ i + 1 ]
+			end
+			return call( _call( s, kwargs ) )
+		end
+		return _call( s, kwargs )
+	end,
 } ) )
 
 --https://stackoverflow.com/a/33312901
@@ -334,9 +358,9 @@ local function split( text, delim )
 end
 
 local function marshaller( obj )
-	local t = type( obj )
 	local m = getmetatable( obj )
     if m and m._proxy then return end
+	local t = type( obj )
     for _, m in ipairs( marshallTypesOrder ) do
 		for _, _t in pairs( marshallTypes[ m ] ) do
 			if t == _t then
@@ -426,7 +450,7 @@ local function handleLuaReset( )
 	registry = { }
 	lookup = setmetatable( { }, { __mode = "k" } )
 	objectData = setmetatable( { }, { __mode = "k" } )
-	StyxScribeShared.Root = new( Table, nil, 0 )
+	StyxScribeShared.Root = Table( nil, 0 )
 	StyxScribe.Send( "StyxScribeShared: Reset" )
 end
 
@@ -445,11 +469,11 @@ StyxScribeShared.Internal = ModUtil.UpValues( function( )
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
 		handleNew, handleSet, handleReset, handleAct, handleDel, handlePyReset, handleName,
-		NONE, Table, Array, Args, Action, KWArgs, KWAction
+		NONE, Table, Array, Args, Action, Relay, KWArgs, KWAction, KWRelay
 end )
 
 ModUtil.Table.Merge( StyxScribeShared, {
-	NONE = NONE, Table = Table, Array = Array, Action = Action, KWArgs = KWArgs, KWAction = KWAction
+	NONE = NONE, Table = Table, Array = Array, Action = Action, Relay = Relay, KWArgs = KWArgs, KWAction = KWAction, KWRelay = KWRelay
 } )
 
 StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )

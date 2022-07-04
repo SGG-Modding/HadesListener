@@ -202,8 +202,6 @@ class ProxyCall(Proxy):
             SetName(self, obj.__name__)
         else:
             raise TypeError(f"{type(self)} cannot marshall type {type(obj)}")
-    def _call(self, args):
-        return self(*args)
 
 @proxyType
 @marshallType(dict, set)
@@ -329,36 +327,55 @@ class KWArgs(Table):
             self._shset(key, val)
     def __getitem__(self, key):
         return self._proxy[key]
+    def _unpack(self):
+        kwargs = {k:v for k,v in self.items() if not isinstance(k,int) or k < 0}
+        n = 1+max((-1,)+tuple(k for k in self.keys() if k not in kwargs))
+        args = tuple(self[k] for k in range(n))
+        return args, kwargs
 
 @proxyType
 @marshallType(_function)
 class Action(ProxyCall, _function):
     def __call__(self, *args):
         if self._local:
-            self._proxy(*args)
-        else:
-            i = lookup[self]
-            a = Args(args)
-            ai = lookup[a]
-            Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+            return self._proxy(*args)
+        i = lookup[self]
+        a = Args(args)
+        ai = lookup[a]
+        Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+    def _call(self, args):
+        return self(*args)
 
 @proxyType
 class KWAction(Action):
     def __call__(self, *args, **kwargs):
         if self._local:
-            self._proxy(*args, **kwargs)
-        else:
-            i = lookup[self]
-            a = dict(enumerate(args))
-            a.update(kwargs)
-            a = KWArgs(a)
-            ai = lookup[a]
-            Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+            return self._proxy(*args, **kwargs)
+        i = lookup[self]
+        a = dict(enumerate(args))
+        a.update(kwargs)
+        a = KWArgs(a)
+        ai = lookup[a]
+        Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
     def _call(self, args):
-        kwargs = {k:v for k,v in args.items() if not isinstance(k,int) or k < 0}
-        n = 1+max((-1,)+tuple(k for k in args.keys() if k not in kwargs))
-        args = tuple(args[k] for k in range(n))
+        args, kwargs = args._unpack()
         return self(*args, **kwargs)
+
+@proxyType
+class Relay(Action):
+    def __call__(self, call, *args):
+        _call = super(self.__class__, self).__call__
+        if self._local:
+            return call(_call(*args))
+        return _call(call, *args)
+
+@proxyType
+class KWRelay(KWAction):
+    def __call__(self, call, *args, **kwargs):
+        _call = super(self.__class__, self).__call__
+        if self._local:
+            return call(_call(*args, **kwargs))
+        return _call(call, *args, **kwargs)
 
 def marshaller(obj):
     if isinstance(obj,Proxy):
