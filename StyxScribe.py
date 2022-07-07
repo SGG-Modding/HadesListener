@@ -33,6 +33,7 @@ PREFIX_LUA = "Lua:\t"
 PREFIX_ENGINE = "Engine:\t"
 PREFIX_INPUT = "In:\t"
 EXCLUDE_ENGINE = True
+ERRORS_HALT = True
 
 #https://github.com/pallets/click/issues/2033#issue-960810534
 def make_sync(func):
@@ -49,11 +50,15 @@ def ispromise(promise):
     return asyncio.iscoroutine(promise) or isinstance(promise, async_generator)
 
 async def callpromise(call, *args, **kwargs):
-    promise = call(*args, **kwargs)
-    if ispromise(promise):
-        return await promise
-    else:
-        return promise
+    try:
+        promise = call(*args, **kwargs)
+        if ispromise(promise):
+            await promise
+    except Exception as e:
+        if ERRORS_HALT:
+            raise e from None
+        else:
+            traceback.print_exc(file=sys.stdout)
 
 def getattr_nocase(obj,name,default=None):
     try:
@@ -194,7 +199,7 @@ class StyxScribe:
             await self.queue.put(message)
             await self.queue.join()
 
-        self.send = lambda msg: asyncio.run_coroutine_threadsafe(send(msg),self.loop)
+        self.send = lambda msg: asyncio.run_coroutine_threadsafe(send(msg), self.loop) if self.queue else None
 
         @make_sync
         async def run(out=None):
@@ -213,6 +218,8 @@ class StyxScribe:
 
             for callback in self.on_runs:
                 await callpromise(callback)
+
+            force = not echo
 
             try:
                 while self.game.returncode is None:
@@ -247,12 +254,9 @@ class StyxScribe:
                     for prefix, callbacks in self.hooks.items():
                         if output.startswith(prefix):
                             for callback in callbacks:
-                                try:
-                                    await callpromise(callback, output[len(prefix):])
-                                except Exception:
-                                    traceback.print_exc(file=sys.stdout)
+                                await callpromise(callback, output[len(prefix):])
             except KeyboardInterrupt:
-                pass
+                force = True
 
             for callback in self.on_cleanups:
                 await callpromise(callback)
@@ -261,6 +265,10 @@ class StyxScribe:
             
             self.queue = None
             self.loop = None
+            
+            if not force:
+                input("GAME CLOSED! Press ENTER to exit.")
+            
             self.close()
 
         if log:

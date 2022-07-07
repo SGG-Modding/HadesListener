@@ -5,18 +5,21 @@ local pollPeriod = 0.25
 local pollDelay = 0.01
 local prefixLua = "Lua:"
 local prefixDebugPrint = "DebugPrint: "
+local prefixDebugMessage = "DebugMessage: "
 local prefixDebugAssert = "DebugAssert: "
 local prefixStyxScribe = "StyxScribe: "
 local proxyFile = "proxy_stdin.txt"
 local showDebugPrint = false
+local showDebugMessage = false
 local showDebugAssert = false
+local errorsHalt = true
 
 ModUtil.Path.Wrap( "print", function( base, ... )
-	return base( prefixLua, ... )
+	return base( prefixLua, table.rawconcat( table.pack( ... ), '\t' ):gsub('\n', '\n' .. prefixLua .. '\t') )
 end, StyxScribe )
 
-local pcall, loadfile, select, rawipairs, rawpairs, yield =
-	pcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield
+local pcall, xpcall, loadfile, select, rawipairs, rawpairs, yield, resume, traceback =
+	pcall, xpcall, loadfile, select, rawipairs or ipairs, rawpairs or pairs, coroutine.yield, coroutine.resume, debug.traceback
 
 local send = print
 StyxScribe.Send = send
@@ -71,6 +74,30 @@ function StyxScribe.AddHook( callback, prefix, source )
 		"\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
 end
 
+local function isPromise( promise )
+    return type( promise ) == "thread"
+end
+
+local function callPromise( call, ... )
+	local status, info, co
+	if isPromise( call ) then
+		co = call
+		status, info = resume( call, ... )
+	else
+		status, info = xpcall( call, traceback, ... )
+		if status and isPromise( info ) then
+			co = info
+			status, info = resume( promise )
+		end
+	end
+	if not status then
+		send( co and traceback( co, info ) or info )
+		if errorsHalt then
+			error( "error in callback " .. tostring( call ) )
+		end
+	end
+end
+
 local function notify( ... )
 	for _, message in vararg( ... ) do
 		if debugMode then send( prefixStyxScribe .. "Received: " .. message ) end
@@ -78,7 +105,7 @@ local function notify( ... )
 			local tail = startswith( message, prefix )
 			if tail then
 				for _, callback in rawipairs( callbacks ) do
-					callback( tail )
+					callPromise( callback, tail )
 				end
 			end
 		end
@@ -127,6 +154,15 @@ if DebugAssert then
 	end, StyxScribe )
 end
 
+if DebugMessage then
+	ModUtil.Path.Wrap( "DebugMessage", function( base, args, ... )
+		if showDebugMessage then 
+			send( prefixDebugMessage .. args.Text )
+		end
+		return base( args, ... )
+	end, StyxScribe )
+end
+
 if DebugPrint then
 	ModUtil.Path.Wrap( "DebugPrint", function( base, args, ... )
 		if showDebugPrint then 
@@ -137,7 +173,7 @@ if DebugPrint then
 end
 
 StyxScribe.Internal = ModUtil.UpValues( function( )
-	return debugMode, pollDelay, pollPeriod, notify, proxyFile, showDebugPrint, showDebugAssert,
-		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixStyxScribe,
-		startswith, vararg, hooks, poke, poll, handle, waitArgs
+	return debugMode, pollDelay, pollPeriod, notify, proxyFile, showDebugPrint, showDebugAssert, showDebugMessage,
+		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixDebugMessage, prefixStyxScribe, errorsHalt,
+		startswith, vararg, hooks, poke, poll, handle, waitArgs, callPromise, isPromise
 end )
