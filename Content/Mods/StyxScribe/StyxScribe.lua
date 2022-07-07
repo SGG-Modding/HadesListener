@@ -15,7 +15,8 @@ local showDebugAssert = false
 local errorsHalt = true
 
 ModUtil.Path.Wrap( "print", function( base, ... )
-	return base( prefixLua, table.rawconcat( table.pack( ... ), '\t' ):gsub('\n', '\n' .. prefixLua .. '\t') )
+	local msg = table.rawconcat( table.pack( ... ), '\t' ):gsub('\n', '\n' .. prefixLua .. '\t')
+	return base( prefixLua, msg )
 end, StyxScribe )
 
 local pcall, xpcall, loadfile, select, rawipairs, rawpairs, yield, resume, traceback =
