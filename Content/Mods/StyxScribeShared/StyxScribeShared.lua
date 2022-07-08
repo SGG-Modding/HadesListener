@@ -1,6 +1,7 @@
 ModUtil.Mod.Register( "StyxScribeShared" )
 
 local delim = '¦'
+local newline = '¶'
 
 local registry
 local lookup
@@ -337,24 +338,31 @@ local KWRelay = typeCall( class( "KWRelay", KWAction, {
 	end,
 } ) )
 
---https://stackoverflow.com/a/33312901
-local function split( text, delim )
-    -- returns an array of fields based on text and delimiter (one character only)
-    local result = { }
-    local magic = "().%+-*?[]^$"
+--https://stackoverflow.com/a/60172017
+local function split( str, pat, limit )
+	local t = { }
+	local fpat = "(.-)" .. pat
+	local last_end = 1
+	local s, e, cap = str:find( fpat, 1 )
+	while s do
+		if s ~= 1 or cap ~= "" then
+			table.insert( t, cap )
+		end
 
-    if delim == nil then
-        delim = "%s"
-    elseif string.find( delim, magic, 1, true ) then
-        -- escape magic
-        delim = "%" .. delim
-    end
+		last_end = e + 1
+		s, e, cap = str:find( fpat, last_end )
 
-    local pattern = "[^" .. delim .. "]+"
-    for w in string.gmatch( text, pattern ) do
-        table.insert( result, w )
-    end
-    return result
+		if limit ~= nil and limit <= #t then
+			break
+		end
+	end
+
+	if last_end <= #str then
+		cap = str:sub( last_end )
+		table.insert( t, cap )
+	end
+
+	return t
 end
 
 local function marshaller( obj )
@@ -382,17 +390,17 @@ end
 
 function decode( s )
 	local t, v = s:sub(1,1), s:sub(2)
-	if t == "&" then return v end
-	if t == "#" then return tonumber( v ) end
-	if t == "@" then return registry[ -tonumber( v ) ] end
-	if t == "!" then return v == "!" end
-	if t == "*" then return nil end
+	if t == '&' then return v:gsub( newline, '\n' ) end
+	if t == '#' then return tonumber( v ) end
+	if t == '@' then return registry[ -tonumber( v ) ] end
+	if t == '!' then return v == "!" end
+	if t == '*' then return nil end
 	error( s .. " cannot be decoded.", 2 )
 end
 
 function encode( v )
 	local t, m = type( v ), getmetatable( v )
-	if t == "string" then return "&" .. v end
+	if t == "string" then return "&" .. v:gsub( '\n', newline ) end
 	if t == "number" then return "#" .. tostring( v ) end
 	if m and m._proxy then return "@" .. tostring( lookup[ v ] ) end
 	if t == "boolean" then return v and "!!" or "!" end
@@ -465,7 +473,7 @@ function StyxScribeShared.GetName( proxy )
 end
 
 StyxScribeShared.Internal = ModUtil.UpValues( function( )
-	return registry, lookup, delim, objectData, split, class, new, nop,
+	return registry, lookup, delim, newline, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
 		handleNew, handleSet, handleReset, handleAct, handleDel, handlePyReset, handleName,

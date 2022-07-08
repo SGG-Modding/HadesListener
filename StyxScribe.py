@@ -114,6 +114,7 @@ class StyxScribe:
             True: self.executable_cwd_purepath / LUA_PROXY_TRUE
         }
         
+        self.encoding = "utf8"
         self.args.insert(0, self.executable_purepath)
         self.hooks = defaultdict(list)
         self.modules = self.Modules()
@@ -167,7 +168,7 @@ class StyxScribe:
             return f"[{equals}[{message}]{equals}]"
 
         def quick_write_file(path, content):
-            with open(path, 'w', encoding="utf8") as file:
+            with open(path, 'w', encoding=self.encoding) as file:
                 file.write(content)
 
         def setup_proxies():
@@ -187,7 +188,7 @@ class StyxScribe:
             #https://gist.github.com/tomschr/39734f0151a14187fd8f4844f66be6ba#file-asyncio-producer-consumer-task_done-py-L22
             while True:
                 message = await self.queue.get()
-                with open(self.proxy_purepaths[proxy_switch], 'a', encoding="utf8") as file:
+                with open(self.proxy_purepaths[proxy_switch], 'a', encoding=self.encoding) as file:
                     if echo and not message.startswith(tuple(self.ignore_prefixes)):
                         print(PREFIX_INPUT, message)
                     file.write(f",{sane(message)}")
@@ -223,10 +224,11 @@ class StyxScribe:
 
             try:
                 while self.game.returncode is None:
+                    output = await self.game.stdout.readline()
                     try:
-                        output = (await self.game.stdout.readline()).decode()
-                    except ValueError:
-                        message = "Error: Line too long to process."
+                        output = output.decode(encoding=self.encoding)
+                    except ValueError as e:
+                        message = f"Error: Failed to process line: {e}"
                         if echo:
                             print(message)
                         if out:

@@ -11,6 +11,7 @@ ShowTableAddrs = False
 proxyTypes = dict()
 marshallTypes = OrderedDict()
 DELIM = '¦'
+NEWLINE = '¶'
 
 registry = None
 lookup = None
@@ -403,7 +404,7 @@ def encode(v):
     if isinstance(v, bool):
         return "!!" if v else "!"
     if isinstance(v, str):
-        return "&" + v
+        return "&" + v.replace('\n', NEWLINE)
     if isinstance(v, Number):
         return "#" + str(v)
     if isinstance(v, Proxy):
@@ -416,7 +417,7 @@ def decode(s):
     t = s[:1]
     v = s[1:]
     if t == "&":
-        return v
+        return v.replace(NEWLINE, '\n')
     if t == "#":
         if v.isdigit():
             return int(v)
