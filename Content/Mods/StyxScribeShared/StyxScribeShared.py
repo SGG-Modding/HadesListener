@@ -5,6 +5,7 @@ from inspect import getmembers
 from functools import wraps
 from threading import local as thread_local
 from types import MethodType
+import asyncio
 
 ShowTableAddrs = False
 
@@ -15,6 +16,7 @@ NEWLINE = '¶'
 
 registry = None
 lookup = None
+returns = None
 
 NIL = None
 Root = None
@@ -68,6 +70,19 @@ class MetaOverrider(type):
             if not callable(magic_method) or getattr(magic_method, "_wrapped", False):
                 continue
             setattr(cls, name, _meta_wrap(name, magic_method))
+
+def _setEventLoop(loop=None):
+    #https://stackoverflow.com/a/72220058
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError as e:
+        if str(e).startswith('There is no current event loop in thread') or str(e) == 'no running event loop':
+            if loop is None:
+                loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        else:
+            raise
+    return loop
 
 def _shortAddress(obj):
     return hex(id(obj))[2:].upper()
@@ -197,6 +212,10 @@ class ProxySet(Proxy):
 
 class ProxyCall(Proxy):
     _repr = True
+    def __call__(self, *args, **kwargs):
+        if self._local:
+            return self._proxy(*args, **kwargs)
+        self._act(args, kwargs)
     def _marshall(self, obj):
         if callable(obj):
             self._proxy = obj
@@ -335,48 +354,77 @@ class KWArgs(Table):
         return args, kwargs
 
 @proxyType
-@marshallType(_function)
 class Action(ProxyCall, _function):
-    def __call__(self, *args):
-        if self._local:
-            return self._proxy(*args)
+    def _act(self, args, kwargs=None):
         i = lookup[self]
         a = Args(args)
         ai = lookup[a]
         Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+        return a
     def _call(self, args):
         return self(*args)
 
 @proxyType
 class KWAction(Action):
-    def __call__(self, *args, **kwargs):
-        if self._local:
-            return self._proxy(*args, **kwargs)
+    def _act(self, args, kwargs=None):
         i = lookup[self]
         a = dict(enumerate(args))
-        a.update(kwargs)
+        if kwargs is not None:
+            a.update(kwargs)
         a = KWArgs(a)
         ai = lookup[a]
         Scribe.Send(f"StyxScribeShared: Act: {i}{DELIM}{ai}")
+        return a
     def _call(self, args):
         args, kwargs = args._unpack()
         return self(*args, **kwargs)
 
 @proxyType
 class Relay(Action):
-    def __call__(self, call, *args):
-        _call = super(self.__class__, self).__call__
+    def __call__(self, call, *args, **kwargs):
         if self._local:
-            return call(_call(*args))
-        return _call(call, *args)
+            return call(self._proxy(*args, **kwargs))
+        return self._act((call, *args))
 
 @proxyType
-class KWRelay(KWAction):
+class KWRelay(KWAction, Relay):
     def __call__(self, call, *args, **kwargs):
-        _call = super(self.__class__, self).__call__
         if self._local:
-            return call(_call(*args, **kwargs))
-        return _call(call, *args, **kwargs)
+            return call(self._proxy(*args, **kwargs))
+        return self._act((call, *args), kwargs)
+
+@proxyType
+@marshallType(_function)
+class Func(Action):
+    def __call__(self, *args, **kwargs):
+        if self._local:
+            return self._proxy(*args, **kwargs)
+        a = self._act(args, kwargs)
+        #block until return message
+        loop = _setEventLoop(scribe.loop)
+        queue = asyncio.Queue(1)
+        returns[a] = queue
+        return loop.run_until_complete(loop.create_task(queue.get()))
+    def _call(self, args):
+        _call = super(self.__class__, self)._call
+        status = True
+        ret = None
+        try:
+            ret = _call(args)
+        except Exception as e:
+            #TODO: return useful exception info
+            status = False
+            rets = Args((str(e),str(e)))
+        else:
+            rets = Args((ret,))
+        ai = lookup[args]
+        ri = lookup[rets]
+        Scribe.Send(f"StyxScribeShared: Ret: {ai}{DELIM}{ri}")
+        return ret
+
+@proxyType
+class KWFunc(KWAction, Func):
+    pass #implicitly handled by MRO? TODO: verify this
 
 def marshaller(obj):
     if isinstance(obj,Proxy):
@@ -466,6 +514,12 @@ def handleAct(message):
     args = registry[-int(args)]
     func._call(args)
 
+def handleRet(message):
+    call, rets = message.split(DELIM)
+    call = returns[registry[-int(call)]]
+    rets = registry[-int(rets)]
+    call.put_nowait(rets)
+
 def handleName(message):
     obj, name = message.split(DELIM)
     obj = registry[-int(obj)]
@@ -474,6 +528,7 @@ def handleName(message):
 def handleReset(message=None):
     global registry
     global lookup
+    global returns
     global Root
     if registry is not None:
         registry.clear()
@@ -481,6 +536,9 @@ def handleReset(message=None):
     if lookup is not None:
         lookup.clear()
     lookup = WeakKeyDictionary()
+    if returns is not None:
+        returns.clear()
+    returns = WeakKeyDictionary()
     Root = Table(None, 0)
     Scribe.Send("StyxScribeShared: Reset")
 
@@ -500,4 +558,5 @@ def Load():
     Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
+    Scribe.AddHook(handleRet, "StyxScribeShared: Ret: ", __name__)
     Scribe.IgnorePrefixes.append("StyxScribeShared: ")

@@ -142,6 +142,13 @@ local ProxySet = class( nil, Proxy, {
 } )
 
 local ProxyCall = class( nil, Proxy, {
+	__call = function( s, ... )
+		if objectData[ s ][ "local" ] then
+			return objectData[ s ][ "proxy" ]( ... )
+		end
+		local meta = getmetatable( s )
+		meta._act( s, ... )
+	end,
 	_marshall = function( s, f )
 		objectData[ s ][ "proxy" ] = f
 	end,
@@ -282,30 +289,26 @@ local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, {
 	end
 } ) ) )
 
-local Action = marshallType( "function", typeCall( class( "Action", ProxyCall, {
-	__call = function( s, ... )
-		if objectData[ s ][ "local" ] then
-			return objectData[ s ][ "proxy" ]( ... )
-		end
+local Action = typeCall( class( "Action", ProxyCall, {
+	_act = function( s, ... )
 		local i = tostring( lookup[ s ] )
 		local a = Args( table.pack( ... ) )
 		local ai = tostring( lookup[ a ] )
 		StyxScribe.Send( "StyxScribeShared: Act: " .. i .. delim .. ai )
+		return a
 	end,
 	_call = function( s, args )
 		return s( table.unpack( args ) )
 	end
-} ) ) )
+} ) )
 
 local KWAction = typeCall( class( "KWAction", Action, { 
-	__call = function( s, kwargs )
-		if objectData[ s ][ "local" ] then
-			return objectData[ s ][ "proxy" ]( kwargs )
-		end
+	_act = function( s, kwargs )
 		local i = tostring( lookup[ s ] )
 		local a = KWArgs( kwargs )
 		local ai = tostring( lookup[ a ] )
 		StyxScribe.Send( "StyxScribeShared: Act: " .. i .. delim .. ai )
+		return a
 	end,
 	_call = function( s, args )
 		return s( args )
@@ -314,17 +317,16 @@ local KWAction = typeCall( class( "KWAction", Action, {
 
 local Relay = typeCall( class( "Relay", Action, {
 	__call = function( s, call, ... )
-		local _call = getmetatable( s )._parents[ 1 ].__call
 		if objectData[ s ][ "local" ] then
-			return call( _call( s, ... ) )
+			return call( objectData[ s ][ "proxy" ]( ... ) )
 		end
-		return _call( s, call, ... )
+		local meta = getmetatable( s )
+		return meta._act( s, call, ... )
 	end
 } ) )
 
-local KWRelay = typeCall( class( "KWRelay", KWAction, { 
+local KWRelay = typeCall( class( "KWRelay", KWAction, Relay, { 
 	__call = function( s, kwargs )
-		local _call = getmetatable( s )._parents[ 1 ].__call
 		if objectData[ s ][ "local" ] then
 			local call = kwargs[ 1 ]
 			local n = #kwargs
@@ -332,10 +334,19 @@ local KWRelay = typeCall( class( "KWRelay", KWAction, {
 			for i = 1, n, 1 do
 				kwargs[ i ] = kwargs[ i + 1 ]
 			end
-			return call( _call( s, kwargs ) )
+			return call( objectData[ s ][ "proxy" ]( kwargs ) )
 		end
-		return _call( s, kwargs )
+		local meta = getmetatable( s )
+		return meta._act( s, kwargs )
 	end,
+} ) )
+
+local Func = marshallType( "function", typeCall( class( "Func", Action, {
+	--TODO: implement this (lua -> python)
+} ) ) )
+
+local KWFunc = typeCall( class( "KWFunc", KWAction, Func, { 
+	--implicitly handled by class heirarchy? TODO: verify this
 } ) )
 
 --https://stackoverflow.com/a/60172017
@@ -477,11 +488,13 @@ StyxScribeShared.Internal = ModUtil.UpValues( function( )
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
 		handleNew, handleSet, handleReset, handleAct, handleDel, handlePyReset, handleName,
-		NONE, Table, Array, Args, Action, Relay, KWArgs, KWAction, KWRelay
+		NONE, Table, Array, Args, Action, Relay, Func, KWArgs, KWAction, KWRelay, KWFunc
 end )
 
 ModUtil.Table.Merge( StyxScribeShared, {
-	NONE = NONE, Table = Table, Array = Array, Action = Action, Relay = Relay, KWArgs = KWArgs, KWAction = KWAction, KWRelay = KWRelay
+	NONE = NONE, Table = Table, Array = Array,
+	Args = Args, Action = Action, Relay = Relay, Func = Func,
+	KWArgs = KWArgs, KWAction = KWAction, KWRelay = KWRelay, KWFunc = KWFunc
 } )
 
 StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )
