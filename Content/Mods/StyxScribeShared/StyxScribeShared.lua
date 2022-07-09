@@ -5,6 +5,7 @@ local newline = '¶'
 
 local registry
 local lookup
+local returns
 local objectData
 local encode
 local decode
@@ -342,7 +343,34 @@ local KWRelay = typeCall( class( "KWRelay", KWAction, Relay, {
 } ) )
 
 local Func = marshallType( "function", typeCall( class( "Func", Action, {
-	--TODO: implement this (lua -> python)
+	__call = function( s, ... )
+		if objectData[ s ][ "local" ] then
+			return objectData[ s ][ "proxy" ]( ... )
+		end
+		local meta = getmetatable( s )
+		local a = meta._act( s, call, ... )
+		--block until return message
+		local rets
+		repeat
+			rets = returns[ a ]
+		until rets
+		local status = rets[ 1 ]
+		if status then
+			return table.unpack( rets, 2, rets.n )
+		end
+		--TODO: throw error
+		local short, long = table.unpack( rets, 2, 3 )
+	end,
+    _call = function( s, args )
+		local meta = getmetatable( s )
+        local _call = meta._parents[ 1 ]._call
+		local errorGather = function( info ) return info, debug.traceback( info ) end
+        local pack = table.pack( xpcall( _call, errorGather, s, args ) )
+        local ai = lookup[ args ]
+        local ri = lookup[ Args( pack ) ]
+        StyxScribe.Send( "StyxScribeShared: Ret: " .. ai .. delim .. ri )
+        return table.unpack( pack, 2, pack.n )
+	end
 } ) ) )
 
 local KWFunc = typeCall( class( "KWFunc", KWAction, Func, { 
@@ -453,6 +481,15 @@ local function handleAct( message )
     getmetatable(func)._call( func, args )
 end
 
+local function handleRet( message )
+	if not ready then return end
+	local args, rets = table.unpack( split( message, delim ) )
+    args = registry[ -tonumber( args ) ]
+	rets = registry[ -tonumber( rets ) ]
+	returns[ args ] = rets
+end
+
+
 local function handleName( message )
 	if not ready then return end
 	local id, name = table.unpack( split( message, delim ) )
@@ -468,6 +505,7 @@ local function handleLuaReset( )
 	ready = false
 	registry = { }
 	lookup = setmetatable( { }, { __mode = "k" } )
+	returns = setmetatable( { }, { __mode = "k" } )
 	objectData = setmetatable( { }, { __mode = "k" } )
 	StyxScribeShared.Root = Table( nil, 0 )
 	StyxScribe.Send( "StyxScribeShared: Reset" )
@@ -487,7 +525,7 @@ StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, delim, newline, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
-		handleNew, handleSet, handleReset, handleAct, handleDel, handlePyReset, handleName,
+		handleNew, handleSet, handleReset, handleAct, handleRet, handleDel, handlePyReset, handleName,
 		NONE, Table, Array, Args, Action, Relay, Func, KWArgs, KWAction, KWRelay, KWFunc
 end )
 
@@ -503,4 +541,5 @@ StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
 StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
 StyxScribe.AddHook( handleDel, "StyxScribeShared: Del: ", StyxScribeShared )
 StyxScribe.AddHook( handleAct, "StyxScribeShared: Act: ", StyxScribeShared )
+StyxScribe.AddHook( handleRet, "StyxScribeShared: Ret: ", StyxScribeShared )
 handleLuaReset( )

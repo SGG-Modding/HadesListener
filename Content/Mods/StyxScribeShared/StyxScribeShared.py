@@ -5,7 +5,6 @@ from inspect import getmembers
 from functools import wraps
 from threading import local as thread_local
 from types import MethodType
-import asyncio
 
 ShowTableAddrs = False
 
@@ -70,19 +69,6 @@ class MetaOverrider(type):
             if not callable(magic_method) or getattr(magic_method, "_wrapped", False):
                 continue
             setattr(cls, name, _meta_wrap(name, magic_method))
-
-def _setEventLoop(loop=None):
-    #https://stackoverflow.com/a/72220058
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError as e:
-        if str(e).startswith('There is no current event loop in thread') or str(e) == 'no running event loop':
-            if loop is None:
-                loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        else:
-            raise
-    return loop
 
 def _shortAddress(obj):
     return hex(id(obj))[2:].upper()
@@ -401,10 +387,19 @@ class Func(Action):
             return self._proxy(*args, **kwargs)
         a = self._act(args, kwargs)
         #block until return message
-        loop = _setEventLoop(scribe.loop)
-        queue = asyncio.Queue(1)
-        returns[a] = queue
-        return loop.run_until_complete(loop.create_task(queue.get()))
+        while a not in returns:
+            pass
+        rets = returns[a]
+        status = rets[0]
+        if status:
+            if len(rets) == 1:
+                return None
+            if len(rets) == 2:
+                return rets[1]
+            return tuple(rets[1:])
+        else:
+            #TODO: throw error
+            short, long = rets[1:]
     def _call(self, args):
         _call = super(self.__class__, self)._call
         status = True
@@ -414,9 +409,9 @@ class Func(Action):
         except Exception as e:
             #TODO: return useful exception info
             status = False
-            rets = Args((str(e),str(e)))
+            rets = Args((status,str(e),str(e)))
         else:
-            rets = Args((ret,))
+            rets = Args((status,ret))
         ai = lookup[args]
         ri = lookup[rets]
         Scribe.Send(f"StyxScribeShared: Ret: {ai}{DELIM}{ri}")
@@ -515,10 +510,10 @@ def handleAct(message):
     func._call(args)
 
 def handleRet(message):
-    call, rets = message.split(DELIM)
-    call = returns[registry[-int(call)]]
+    args, rets = message.split(DELIM)
+    args = registry[-int(args)]
     rets = registry[-int(rets)]
-    call.put_nowait(rets)
+    returns[args] = rets
 
 def handleName(message):
     obj, name = message.split(DELIM)
