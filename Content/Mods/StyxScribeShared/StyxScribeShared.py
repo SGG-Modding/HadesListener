@@ -218,7 +218,7 @@ class Table(ProxySet, dict):
             raise TypeError(f"{type(self)} cannot marshall type {type(obj)}")
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
-        if val is NIL:
+        if val is NIL and key in self._proxy:
             del self._proxy[key]
         else:
             val = marshall(val)
@@ -263,9 +263,10 @@ class Array(ProxySet, list):
         if val is NIL:
             d = key - len(self._proxy) + 1
             if d < 0:
-                for i in range(d):
+                for i in range(d + 1):
                     del self._proxy[-1]
-            del self._proxy[key]
+            elif d == 0:
+                del self._proxy[key]
         else:
             if key > len(self._proxy):
                 return
