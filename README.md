@@ -1,6 +1,8 @@
 # StyxScribe
 Allows plugins to hook into Hades or Pyre and listen for output and to send input in.
 
+NOTE: It does not work on the Windows Store version of Hades
+
 The input is queued up until it's read by by the game at a certain interval, but the output is instantly captured.
 
 For example plugins look at the [REPL](Content/Mods/StyxScribeREPL) or the [shared state](Content/Mods/StyxScribeShared)
