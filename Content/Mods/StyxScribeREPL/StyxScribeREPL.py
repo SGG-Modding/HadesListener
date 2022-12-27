@@ -78,6 +78,8 @@ def evaluate(inp):
         else:
             RunLua(inp)
 
+Priority = 0
+
 def Load():
     #start the Keyboard thread
     Scribe.AddOnRun(lambda: KeyboardThread(evaluate), __name__)

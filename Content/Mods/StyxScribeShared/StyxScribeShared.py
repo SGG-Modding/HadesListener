@@ -493,6 +493,8 @@ def SetName(proxy,name):
 def GetName(proxy):
     return proxy._name
 
+Priority = 0
+
 def Load():
     Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
     Scribe.AddHook(handleName, "StyxScribeShared: Name: ", __name__)

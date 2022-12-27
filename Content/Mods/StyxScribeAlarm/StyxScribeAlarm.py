@@ -27,6 +27,8 @@ def _alarm(message=None):
     #https://stackoverflow.com/a/16573339
     print(f"StyxScribe is unresponsive! ({time.time()-_runtime})\a")
 
+Priority = 0
+
 def Load():
     #start the Keyboard thread
     Scribe.AddOnRun(_onrun, __name__)
