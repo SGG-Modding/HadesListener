@@ -451,6 +451,7 @@ end
 
 local function handlePyReset( )
 	ready = true
+	StyxScribe.Send( "StyxScribeShared: Reset" )
 end
 
 local function handleLuaReset( )
@@ -459,7 +460,7 @@ local function handleLuaReset( )
 	lookup = setmetatable( { }, { __mode = "k" } )
 	objectData = setmetatable( { }, { __mode = "k" } )
 	StyxScribeShared.Root = Table( nil, 0 )
-	StyxScribe.Send( "StyxScribeShared: Reset" )
+	StyxScribe.Send( "StyxScribeShared: Reload" )
 end
 
 function StyxScribeShared.SetName( proxy, name )

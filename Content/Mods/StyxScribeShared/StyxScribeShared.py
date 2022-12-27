@@ -471,7 +471,7 @@ def handleName(message):
     obj = registry[-int(obj)]
     obj._name = decode(name)
 
-def handleReset(message=None):
+def handleReload(message=None):
     global registry
     global lookup
     global Root
@@ -496,7 +496,7 @@ def GetName(proxy):
 Priority = 0
 
 def Load():
-    Scribe.AddHook(handleReset, "StyxScribeShared: Reset", __name__)
+    Scribe.AddHook(handleReload, "StyxScribeShared: Reload", __name__)
     Scribe.AddHook(handleName, "StyxScribeShared: Name: ", __name__)
     Scribe.AddHook(handleNew, "StyxScribeShared: New: ", __name__)
     Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
