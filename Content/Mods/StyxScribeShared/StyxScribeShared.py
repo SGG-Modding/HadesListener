@@ -6,6 +6,9 @@ from functools import wraps
 from threading import local as thread_local
 from types import MethodType
 
+__all__ = ["Load","Priority","ShowTableAddrs","Root","IsLocal","GetID","GetName",
+        "NIL","Table","Array","Action","Relay","KWArgs","Args","KWAction","KWRelay"]
+
 ShowTableAddrs = False
 
 proxyTypes = dict()
@@ -484,14 +487,21 @@ def handleReload(message=None):
     Root = Table(None, 0)
     Scribe.Send("StyxScribeShared: Reset")
 
+def IsLocal(proxy):
+    return proxy._local
+
+def GetID(proxy):
+    #negated so it corresponds to what Lua reports the ID as
+    return -lookup[proxy]
+
+def GetName(proxy):
+    return proxy._name
+
 def SetName(proxy,name):
     proxy._name = name
     i = lookup[proxy]
     name = encode(name)
     Scribe.Send(f"StyxScribeShared: Name: {i}{DELIM}{name}")
-
-def GetName(proxy):
-    return proxy._name
 
 Priority = 0
 

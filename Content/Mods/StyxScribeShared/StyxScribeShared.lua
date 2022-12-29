@@ -463,26 +463,34 @@ local function handleLuaReset( )
 	StyxScribe.Send( "StyxScribeShared: Reload" )
 end
 
+function StyxScribeShared.IsLocal( proxy )
+	return objectData[ proxy ][ "local" ]
+end
+
+function StyxScribeShared.GetID( proxy )
+	return lookup[ proxy ]
+end
+
+function StyxScribeShared.GetName( proxy )
+	return objectData[ proxy ][ "name" ]
+end
+
 function StyxScribeShared.SetName( proxy, name )
 	objectData[ proxy ][ "name" ] = name
 	local id = tostring( lookup[ proxy ] )
 	StyxScribe.Send( "StyxScribeShared: Name: " .. id .. delim .. encode( name ) )
 end
 
-function StyxScribeShared.GetName( proxy )
-	return objectData[ obj ][ "name" ]
-end
-
 StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, delim, newline, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
-		handleNew, handleSet, handleReset, handleAct, handleDel, handlePyReset, handleName,
+		handleNew, handleSet, handleLuaReset, handleAct, handleDel, handlePyReset, handleName,
 		NONE, Table, Array, Args, Action, Relay, KWArgs, KWAction, KWRelay
 end )
 
 ModUtil.Table.Merge( StyxScribeShared, {
-	NONE = NONE, Table = Table, Array = Array, Action = Action, Relay = Relay, KWArgs = KWArgs, KWAction = KWAction, KWRelay = KWRelay
+	NONE = NONE, Table = Table, Array = Array, Action = Action, Relay = Relay, KWArgs = KWArgs, Args = Args, KWAction = KWAction, KWRelay = KWRelay
 } )
 
 StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )
