@@ -7,7 +7,7 @@ from threading import local as thread_local
 from types import MethodType
 
 __all__ = ["Load","Priority","ShowTableAddrs","Root","IsLocal","GetID","GetName",
-        "NIL","Table","Array","Action","Relay","KWArgs","Args","KWAction","KWRelay"]
+        "NIL","NULL","Table","Array","Action","Relay","KWArgs","Args","KWAction","KWRelay"]
 
 ShowTableAddrs = False
 
@@ -18,6 +18,12 @@ NEWLINE = '¶'
 
 registry = None
 lookup = None
+promises = None
+
+class _NULL():
+    def __repr__(self):
+        return "StyxScribeShared.NULL"
+NULL = _NULL()
 
 NIL = None
 Root = None
@@ -127,6 +133,7 @@ def marshallType(*types):
 class Proxy(metaclass=MetaOverrider):
     def __init__(self, v=None, i=None):
         #initialise a new object to proxy, select from inheritance
+        proxy = NULL
         for cls in type(self).__mro__:
             if Proxy not in cls.__mro__:
                 proxy = cls()
@@ -181,7 +188,6 @@ class Proxy(metaclass=MetaOverrider):
         return object.__getattribute__(self, name)       
 
 class ProxySet(Proxy):
-    _repr = False
     def _shset(self, key, val):
         if self._alive:
             i = lookup[self]
@@ -199,7 +205,6 @@ class ProxySet(Proxy):
             return NIL
 
 class ProxyCall(Proxy):
-    _repr = True
     def _marshall(self, obj):
         if callable(obj):
             self._proxy = obj
@@ -222,7 +227,8 @@ class Table(ProxySet, dict):
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
         if val is NIL:
-            del self._proxy[key]
+            if key in self._proxy:
+                del self._proxy[key]
         else:
             val = marshall(val)
             self._proxy[key] = val
@@ -290,6 +296,12 @@ class Array(ProxySet, list):
 
 @proxyType
 class Args(Array):
+    def _marshall(self, obj):
+        _m = super(self.__class__, self)._marshall
+        try:
+            _m( obj )
+        except TypeError:
+            self[0] = obj
     def __setitem__(self, key, val, sync=True):
         if val is NIL:
             if key >= len(self._proxy):
@@ -340,9 +352,9 @@ class KWArgs(Table):
 @proxyType
 @marshallType(_function)
 class Action(ProxyCall, _function):
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
         if self._local:
-            return self._proxy(*args)
+            return self._proxy(*args, **kwargs)
         i = lookup[self]
         a = Args(args)
         ai = lookup[a]
@@ -365,21 +377,57 @@ class KWAction(Action):
         args, kwargs = args._unpack()
         return self(*args, **kwargs)
 
+def _Relay__call__(self, call, *args, **kwargs):
+    _call = super(self.__class__, self).__call__
+    if self._local:
+        return call(_call(*args, **kwargs))
+    return _call(call, *args, **kwargs)
+
 @proxyType
 class Relay(Action):
-    def __call__(self, call, *args):
-        _call = super(self.__class__, self).__call__
-        if self._local:
-            return call(_call(*args))
-        return _call(call, *args)
+    __call__ = _Relay__call__
 
 @proxyType
 class KWRelay(KWAction):
-    def __call__(self, call, *args, **kwargs):
-        _call = super(self.__class__, self).__call__
-        if self._local:
-            return call(_call(*args, **kwargs))
-        return _call(call, *args, **kwargs)
+    __call__ = _Relay__call__
+
+@proxyType
+class Promise(Proxy):
+    def _marshall(self, obj):
+        self(obj)
+    def __call__(self, value, sync=True):
+        if self._proxy is not NULL:
+            return
+        value = marshall(value)
+        self._proxy = value
+        if sync:
+            i = lookup[self]
+            val = encode(val)
+            Scribe.Send(f"StyxScribeShared: Put: {i}{DELIM}{val}")
+    def __len__(self):
+        return 0 if self._proxy == NULL else 1
+    def __repr__(self):
+        return Proxy.__repr__(self)  + '(' + repr(self._proxy) + ')'
+
+def _Async__call__(self, *args, **kwargs):
+    _call = super(self.__class__, self).__call__
+    if self._local:
+        return _call(*args, **kwargs)
+    p = Promise()
+    i = lookup[self]
+    pi = lookup[p]
+    Scribe.Send(f"StyxScribeShared: Async: {i}{DELIM}{pi}")
+    _call(*args, **kwargs)
+    return p
+        
+@proxyType
+class Async(Action):
+    __call__ = _Async__call__
+        
+
+@proxyType
+class KWAsync(KWAction):
+    __call__ = _Async__call__
 
 def marshaller(obj):
     if isinstance(obj,Proxy):
@@ -404,6 +452,8 @@ def marshall(obj):
     return obj
 
 def encode(v):
+    if v is NIL or v is NULL:
+        return "*"
     if isinstance(v, bool):
         return "!!" if v else "!"
     if isinstance(v, str):
@@ -412,8 +462,6 @@ def encode(v):
         return "#" + str(v)
     if isinstance(v, Proxy):
         return "@" + str(lookup[v])
-    if v is NIL:
-        return "*"
     raise TypeError(f"{v} of type {type(v)} cannot be encoded.")
 
 def decode(s):
@@ -465,9 +513,25 @@ def handleDel(message):
 
 def handleAct(message):
     func, args = message.split(DELIM)
+    func = -int(func)
+    prom = promises.get(func, None)
     func = registry[-int(func)]
     args = registry[-int(args)]
-    func._call(args)
+    rets = func._call(args)
+    if prom is not None:
+        prom(rets)
+
+def handlePut(message):
+    p, v = message.split(DELIM)
+    p = registry[-int(p)]
+    v = decode(v)
+    p(v, False)
+
+def handleAsync(message):
+    f, p = message.split(DELIM)
+    f = -int(f)
+    p = registry[-int(p)]
+    promises[f] = p
 
 def handleName(message):
     obj, name = message.split(DELIM)
@@ -477,6 +541,7 @@ def handleName(message):
 def handleReload(message=None):
     global registry
     global lookup
+    global promises
     global Root
     if registry is not None:
         registry.clear()
@@ -484,6 +549,9 @@ def handleReload(message=None):
     if lookup is not None:
         lookup.clear()
     lookup = WeakKeyDictionary()
+    if promises is not None:
+        promises.clear()
+    promises = {}
     Root = Table(None, 0)
     Scribe.Send("StyxScribeShared: Reset")
 
@@ -512,4 +580,6 @@ def Load():
     Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
-    Scribe.IgnorePrefixes.append("StyxScribeShared: ")
+    Scribe.AddHook(handlePut, "StyxScribeShared: Put: ", __name__)
+    Scribe.AddHook(handleAsync, "StyxScribeShared: Async: ", __name__)
+    #Scribe.IgnorePrefixes.append("StyxScribeShared: ")

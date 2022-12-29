@@ -10,10 +10,14 @@ local encode
 local decode
 local marshall
 
+local promises
+local null = { }
+ModUtil.Identifiers[ null ] = "StyxScribeShared.Null"
+
 local classes = { }
 local marshallTypes = { }
 local marshallTypesOrder = { }
-local NONE = { }
+local None = { }
 local ready = false
 
 local function nop( ... ) return ... end
@@ -155,7 +159,7 @@ local Table = marshallType( "table", typeCall( class( "Table", ProxySet, {
 		k, v = marshall( k ), marshall( v )
 		objectData[ s ][ "proxy" ][ k ] = v
 		local meta = getmetatable( s )
-		if sync == nil or sync then
+		if sync ~= false then
 			meta._shset( s, k, v )
 		end
 	end,
@@ -192,7 +196,7 @@ local Array = marshallType( "table", typeCall( class( "Array", ProxySet, {
 		end
 		proxy[ k ] = v
 		local meta = getmetatable( s )
-		if sync == nil or sync then
+		if sync ~= false then
 			meta._shset( s, k - 1, v )
 		end
 	end,
@@ -273,7 +277,7 @@ local KWArgs = marshallType( "table", typeCall( class( "KWArgs", Table, {
 		k, v = marshall( k ), marshall( v )
 		objectData[ s ][ "proxy" ][ k ] = v
 		local meta = getmetatable( s )
-		if sync == nil or sync then
+		if sync ~= false then
 			if type( k ) == "number" then
 				k = k - 1
 			end
@@ -338,6 +342,67 @@ local KWRelay = typeCall( class( "KWRelay", KWAction, {
 	end,
 } ) )
 
+local Promise = typeCall( class( "Promise", Proxy, {
+	_marshall = function( s, obj )
+		s( obj )
+	end,
+	_newproxy = function( m )
+		return null
+	end,
+	__call = function( s, v, sync )
+		local p = objectData[ s ][ "proxy" ]
+		if p ~= null then return end 
+		p = marshall( v )
+		objectData[ s ][ "proxy" ] = p
+		if sync ~= false then
+			local i = tostring( lookup[ s ] )
+			v = encode( p )
+			StyxScribe.Send( "StyxScribeShared: Put: " .. i .. delim .. v )
+		end
+	end,
+	__index = function( s, k )
+		if k ~= 1 then return nil end
+		local p = objectData[ s ][ "proxy" ]
+		if p == null then return nil end
+		return p
+	end,
+	__len = function( s )
+		local p = objectData[ s ][ "proxy" ]
+		return p == null and 0 or 1
+	end,
+	__next = function( s, ... )
+		local p = objectData[ s ][ "proxy" ]
+		if p == null then return nil end
+		return 1, p
+	end,
+	__inext = function( s, ... )
+		local p = objectData[ s ][ "proxy" ]
+		if p == null then return nil end
+		return 1, p
+	end
+} ) )
+
+local _Async__call = function( s, ... )
+	local _call = getmetatable( s )._parents[ 1 ].__call
+	if objectData[ s ][ "local" ] then
+		return _call( s, ... )
+	end
+	local p = Promise()
+	local i = lookup[ s ]
+	local pi = lookup[ p ]
+	StyxScribe.Send( "StyxScribeShared: Async: " .. i .. delim .. pi )
+	_call( s, ... )
+	return p
+end
+
+local Async = typeCall( class( "Async", Action, {
+	__call = _Async__call
+} ) )
+
+local KWAsync = typeCall( class( "KWAsync", KWAction, { 
+	__call = _Async__call,
+} ) )
+
 --https://stackoverflow.com/a/60172017
 local function split( str, pat, limit )
 	local t = { }
@@ -379,7 +444,7 @@ local function marshaller( obj )
 end
 
 function marshall( obj )
-    if obj == NONE then return nil end
+    if obj == None then return nil end
     local m = marshaller( obj )
     if m then return new( m, obj ) end
     if type( obj ) == "string" then
@@ -390,21 +455,21 @@ end
 
 function decode( s )
 	local t, v = s:sub(1,1), s:sub(2)
+	if t == '*' then return nil end
 	if t == '&' then return v:gsub( newline, '\n' ) end
 	if t == '#' then return tonumber( v ) end
 	if t == '@' then return registry[ -tonumber( v ) ] end
 	if t == '!' then return v == "!" end
-	if t == '*' then return nil end
 	error( s .. " cannot be decoded.", 2 )
 end
 
 function encode( v )
+	if v == nil or v == None or v == NULL then return "*" end
 	local t, m = type( v ), getmetatable( v )
 	if t == "string" then return "&" .. v:gsub( '\n', newline ) end
 	if t == "number" then return "#" .. tostring( v ) end
 	if m and m._proxy then return "@" .. tostring( lookup[ v ] ) end
 	if t == "boolean" then return v and "!!" or "!" end
-	if v == nil or v == NONE then return "*" end
 	error( tostring( v ) .. " cannot be encoded.", 2 )
 end
 
@@ -437,9 +502,28 @@ end
 local function handleAct( message )
 	if not ready then return end
 	local func, args = table.unpack( split( message, delim ) )
-    func = registry[ -tonumber( func ) ]
+	func = -tonumber( func )
+	local prom = promises[ func ]
+    func = registry[ func ]
     args = registry[ -tonumber( args ) ]
-    getmetatable(func)._call( func, args )
+    local rets = table.pack( getmetatable(func)._call( func, args ) )
+	if prom then prom( Args( rets ) ) end
+end
+
+local function handlePut( message )
+	if not ready then return end
+	local p, v = table.unpack( split( message, delim ) )
+	p = registry[ -tonumber( p ) ]
+	v = decode( v )
+	p( v, false )
+end
+
+local function handleAsync( message )
+	if not ready then return end
+	local f, p = table.unpack( split( message, delim ) )
+	f = registry[ -tonumber( f ) ]
+	p = registry[ -tonumber( p ) ]
+	promises[ f ] = p
 end
 
 local function handleName( message )
@@ -458,6 +542,7 @@ local function handleLuaReset( )
 	ready = false
 	registry = { }
 	lookup = setmetatable( { }, { __mode = "k" } )
+	promises = { }
 	objectData = setmetatable( { }, { __mode = "k" } )
 	StyxScribeShared.Root = Table( nil, 0 )
 	StyxScribe.Send( "StyxScribeShared: Reload" )
@@ -484,13 +569,14 @@ end
 StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, delim, newline, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
-		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready,
-		handleNew, handleSet, handleLuaReset, handleAct, handleDel, handlePyReset, handleName,
-		NONE, Table, Array, Args, Action, Relay, KWArgs, KWAction, KWRelay
+		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready, promises, null,
+		handlePyReset, handleLuaReset, handleName, handleNew, handleSet, handleAct, handleDel, handlePut, handleAsync,
+		None, Table, Array, Args, KWArgs, Promise, Action, KWAction, Relay, KWRelay, Async, KWAsync
 end )
 
 ModUtil.Table.Merge( StyxScribeShared, {
-	NONE = NONE, Table = Table, Array = Array, Action = Action, Relay = Relay, KWArgs = KWArgs, Args = Args, KWAction = KWAction, KWRelay = KWRelay
+	None = None, Table = Table, Array = Array, Args = Args, KWArgs = KWArgs, Promise = Promise,
+	Action = Action, KWAction = KWAction, Relay = Relay, KWRelay = KWRelay, Async = Async, KWAsync = KWAsync
 } )
 
 StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )
@@ -499,4 +585,6 @@ StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
 StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
 StyxScribe.AddHook( handleDel, "StyxScribeShared: Del: ", StyxScribeShared )
 StyxScribe.AddHook( handleAct, "StyxScribeShared: Act: ", StyxScribeShared )
+StyxScribe.AddHook( handlePut, "StyxScribeShared: Put: ", StyxScribeShared )
+StyxScribe.AddHook( handleAsync, "StyxScribeShared: Async: ", StyxScribeShared )
 handleLuaReset( )
