@@ -7,7 +7,7 @@ from threading import local as thread_local
 from types import MethodType
 
 __all__ = ["Load","Priority","ShowTableAddrs","Root","IsLocal","GetID","GetName",
-        "NIL","NULL","Table","Array","Action","Relay","KWArgs","Args","KWAction","KWRelay"]
+        "NONE","Table","Array","Action","Relay","KWArgs","Args","KWAction","KWRelay","Async","KWAsync"]
 
 ShowTableAddrs = False
 
@@ -20,12 +20,7 @@ registry = None
 lookup = None
 promises = None
 
-class _NULL():
-    def __repr__(self):
-        return "StyxScribeShared.NULL"
-NULL = _NULL()
-
-NIL = None
+NONE = None
 Root = None
 
 #https://stackoverflow.com/a/49013535
@@ -133,7 +128,7 @@ def marshallType(*types):
 class Proxy(metaclass=MetaOverrider):
     def __init__(self, v=None, i=None):
         #initialise a new object to proxy, select from inheritance
-        proxy = NULL
+        proxy = None
         for cls in type(self).__mro__:
             if Proxy not in cls.__mro__:
                 proxy = cls()
@@ -197,12 +192,12 @@ class ProxySet(Proxy):
     def __repr__(self):
         return (Proxy.__repr__(self) if ShowTableAddrs else "")  + repr(self._proxy)
     def __delitem__(self, key, sync=True):
-        return self.__setitem__(key, NIL, sync)
+        return self.__setitem__(key, None, sync)
     def __getitem__(self, key):
         try:
             return self._proxy[key]
         except KeyError:
-            return NIL
+            return None
 
 class ProxyCall(Proxy):
     def _marshall(self, obj):
@@ -226,7 +221,7 @@ class Table(ProxySet, dict):
             raise TypeError(f"{type(self)} cannot marshall type {type(obj)}")
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
-        if val is NIL:
+        if val is None or val is NONE:
             if key in self._proxy:
                 del self._proxy[key]
         else:
@@ -269,7 +264,7 @@ class Array(ProxySet, list):
             self[k] = v
     def __setitem__(self, key, val, sync=True):
         key = marshall(key)
-        if val is NIL:
+        if val is None or val is NONE:
             d = key - len(self._proxy) + 1
             if d < 0:
                 for i in range(d):
@@ -303,23 +298,23 @@ class Args(Array):
         except TypeError:
             self[0] = obj
     def __setitem__(self, key, val, sync=True):
-        if val is NIL:
+        if val is None or val is NONE:
             if key >= len(self._proxy):
                 return
-            self._proxy[key] = NIL
+            self._proxy[key] = None
         else:
             n = len(self._proxy)
             if key == 'n':
                 val = marshall(val)
                 if val >= n:
-                    self._proxy.extend([NIL]*(val - n))
+                    self._proxy.extend([None]*(val - n))
                 if val < n:
                     self._proxy[::] = self._proxy[:val]
             else:
                 key = marshall(key)
                 val = marshall(val)
                 if key > n:
-                    self._proxy.extend([NIL]*(key - n)+[val])
+                    self._proxy.extend([None]*(key - n)+[val])
                 if key == len(self._proxy):
                     self._proxy.append(val)
                 else:   
@@ -391,29 +386,13 @@ class Relay(Action):
 class KWRelay(KWAction):
     __call__ = _Relay__call__
 
-@proxyType
-class Promise(Proxy):
-    def _marshall(self, obj):
-        self(obj)
-    def __call__(self, value, sync=True):
-        if self._proxy is not NULL:
-            return
-        value = marshall(value)
-        self._proxy = value
-        if sync:
-            i = lookup[self]
-            val = encode(val)
-            Scribe.Send(f"StyxScribeShared: Put: {i}{DELIM}{val}")
-    def __len__(self):
-        return 0 if self._proxy == NULL else 1
-    def __repr__(self):
-        return Proxy.__repr__(self)  + '(' + repr(self._proxy) + ')'
-
 def _Async__call__(self, *args, **kwargs):
     _call = super(self.__class__, self).__call__
     if self._local:
         return _call(*args, **kwargs)
-    p = Promise()
+    p = Table()
+    p.Done = False
+    p.Data = None
     i = lookup[self]
     pi = lookup[p]
     Scribe.Send(f"StyxScribeShared: Async: {i}{DELIM}{pi}")
@@ -452,7 +431,7 @@ def marshall(obj):
     return obj
 
 def encode(v):
-    if v is NIL or v is NULL:
+    if v is None or v is NONE:
         return "*"
     if isinstance(v, bool):
         return "!!" if v else "!"
@@ -478,7 +457,7 @@ def decode(s):
     if t == "!":
         return v[0] == '!'
     if t == "*":
-        return NIL
+        return None
     raise TypeError(s + " cannot be decoded.")
 
 def handleNew(message):
@@ -515,17 +494,12 @@ def handleAct(message):
     func, args = message.split(DELIM)
     func = -int(func)
     prom = promises.get(func, None)
-    func = registry[-int(func)]
+    func = registry[func]
     args = registry[-int(args)]
     rets = func._call(args)
     if prom is not None:
-        prom(rets)
-
-def handlePut(message):
-    p, v = message.split(DELIM)
-    p = registry[-int(p)]
-    v = decode(v)
-    p(v, False)
+        prom.Data = rets
+        prom.Done = True
 
 def handleAsync(message):
     f, p = message.split(DELIM)
@@ -580,6 +554,5 @@ def Load():
     Scribe.AddHook(handleSet, "StyxScribeShared: Set: ", __name__)
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
-    Scribe.AddHook(handlePut, "StyxScribeShared: Put: ", __name__)
     Scribe.AddHook(handleAsync, "StyxScribeShared: Async: ", __name__)
     #Scribe.IgnorePrefixes.append("StyxScribeShared: ")
