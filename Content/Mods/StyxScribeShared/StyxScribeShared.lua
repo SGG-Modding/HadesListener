@@ -18,7 +18,7 @@ local marshallTypesOrder = { }
 local ready = false
 
 local None = { }
-ModUtil.Identifiers[ None ] = "StyxScribeShared.None"
+ModUtil.Identifiers.Data[ None ] = "StyxScribeShared.None"
 
 local function nop( ... ) return ... end
 
@@ -532,7 +532,7 @@ StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, delim, newline, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
 		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready, promises,
-		handlePyReset, handleLuaReset, handleName, handleNew, handleSet, handleAct, handleDel, handlePut, handleAsync,
+		handlePyReset, handleLuaReset, handleName, handleNew, handleSet, handleAct, handleDel, handleAsync,
 		None, Table, Array, Args, KWArgs, Action, KWAction, Relay, KWRelay, Async, KWAsync
 end )
 

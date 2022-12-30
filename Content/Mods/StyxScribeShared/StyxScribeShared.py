@@ -446,6 +446,8 @@ def encode(v):
 def decode(s):
     t = s[:1]
     v = s[1:]
+    if t == "*":
+        return None
     if t == "&":
         return v.replace(NEWLINE, '\n')
     if t == "#":
@@ -455,9 +457,7 @@ def decode(s):
     if t == "@":
         return registry[-int(v)]
     if t == "!":
-        return v[0] == '!'
-    if t == "*":
-        return None
+        return len(v) >= 1 and v[0] == '!'
     raise TypeError(s + " cannot be decoded.")
 
 def handleNew(message):
@@ -555,4 +555,4 @@ def Load():
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
     Scribe.AddHook(handleAsync, "StyxScribeShared: Async: ", __name__)
-    #Scribe.IgnorePrefixes.append("StyxScribeShared: ")
+    Scribe.IgnorePrefixes.append("StyxScribeShared: ")
