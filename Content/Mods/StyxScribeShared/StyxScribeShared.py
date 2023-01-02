@@ -183,6 +183,7 @@ class Proxy(metaclass=MetaOverrider):
         return object.__getattribute__(self, name)       
 
 class ProxySet(Proxy):
+    _repr = False
     def _shset(self, key, val):
         if self._alive:
             i = lookup[self]
@@ -190,7 +191,7 @@ class ProxySet(Proxy):
             v = encode(val)
             Scribe.Send(f"StyxScribeShared: Set: {i}{DELIM}{k}{DELIM}{v}")
     def __repr__(self):
-        return (Proxy.__repr__(self) if ShowTableAddrs else "")  + repr(self._proxy)
+        return (Proxy.__repr__(self) if self._repr or ShowTableAddrs else "")  + repr(self._proxy)
     def __delitem__(self, key, sync=True):
         return self.__setitem__(key, None, sync)
     def __getitem__(self, key):
@@ -392,7 +393,7 @@ def _Async__call__(self, *args, **kwargs):
         return _call(*args, **kwargs)
     p = Table()
     p.Done = False
-    p.Data = None
+    p.Rets = None
     i = lookup[self]
     pi = lookup[p]
     Scribe.Send(f"StyxScribeShared: Async: {i}{DELIM}{pi}")
@@ -402,11 +403,51 @@ def _Async__call__(self, *args, **kwargs):
 @proxyType
 class Async(Action):
     __call__ = _Async__call__
-        
 
 @proxyType
 class KWAsync(KWAction):
     __call__ = _Async__call__
+
+class _Lazy(MetaOverrider):
+    def __call__(cls, func=None, *args, **kwargs):
+        if callable(func):
+            self = type.__call__(cls)
+            return self(func, *args, **kwargs)
+        return type.__call__(cls, func, *args, **kwargs)
+    
+def _Lazy__call__(self, func=None, *args, **kwargs):
+    rets = None
+    if self._local and func is not None:
+        self.Func = func
+        self.Args = self._args(*args, **kwargs)
+        if isinstance(func, Proxy) and hasattr(func, "_call") and not func._local:
+            self.Done = False
+            self.Rets = None
+            return self
+        rets = func(*args, **kwargs)
+    else:
+        rets = self.Func._call(self.Args)
+    self.Rets = rets
+    self.Done = True
+    return rets
+
+@proxyType
+class Lazy(Table, metaclass=_Lazy):
+    __call__ = _Lazy__call__
+    _lazy = True
+    _repr = True
+    def _args(self, *args, **kwargs):
+        return Args(args)
+
+@proxyType
+class KWLazy(Table, metaclass=_Lazy):
+    __call__ = _Lazy__call__
+    _lazy = True
+    _repr = True
+    def _args(self, *args, **kwargs):
+        a = dict(enumerate(args))
+        a.update(kwargs)
+        return KWArgs(a)
 
 def marshaller(obj):
     if isinstance(obj,Proxy):
@@ -473,7 +514,10 @@ def handleSet(message):
         return
     k = decode(k)
     v = decode(v)
-    s.__setitem__(k, v, False)
+    if getattr(v, "_lazy", False):
+        v = v()
+        return s.__setitem__(k, v, True)
+    return s.__setitem__(k, v, False)
 
 def handleDel(message):
     i = -int(message)
@@ -498,7 +542,7 @@ def handleAct(message):
     args = registry[-int(args)]
     rets = func._call(args)
     if prom is not None:
-        prom.Data = rets
+        prom.Rets = rets
         prom.Done = True
 
 def handleAsync(message):
