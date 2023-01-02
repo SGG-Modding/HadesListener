@@ -20,25 +20,32 @@ def RunLua(s):
 
 def _run_py_eval(s, g, l):
     try:
-        return eval(compile(s, '<string>', 'single'), g, l)
-    except SyntaxError as e:
-        if e.args[0] == "unexpected EOF while parsing":
-            return eval(compile(s, '<string>', 'exec'), g, l)
-        else:
-            raise SyntaxError from e
+        return eval(s, g, l)
+    except SyntaxError:
+        try:
+            return eval(compile(s, '<string>', 'single'), g, l)
+        except SyntaxError as e:
+            if e.args[0] == "unexpected EOF while parsing":
+                return eval(compile(s, '<string>', 'exec'), g, l)
+            else:
+                raise SyntaxError from e
 
-def _run_py(s):
+def RunPython(s, silent=None):
     _stdout = StringIO()
+    rets = None
     with contextlib.redirect_stdout(_stdout):
-        RunPython(s)
+        rets = _run_py(s)
     _stdout.flush()
     io = _stdout.getvalue()
+    if not silent and rets is not None:
+            io = str(rets) + '\n'
     if '\n' in io:
         print("".join((f"\n{_prefix_py}"+s for s in io.split('\n')[:-1]))[1:])
     else:
         print(io,end='')
+    return rets
 
-def RunPython(s):
+def _run_py(s):
     global _locals
     if _locals is None:
         _locals = {"end":End,"End":End,"END":End}
@@ -74,7 +81,7 @@ def evaluate(inp):
     #evaluate the keyboard input
     if inp:
         if inp[:1] == ">":
-            _run_py(inp[1:])
+            RunPython(inp[1:])
         else:
             RunLua(inp)
 

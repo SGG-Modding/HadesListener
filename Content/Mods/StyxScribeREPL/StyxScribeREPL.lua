@@ -20,7 +20,7 @@ local function toString( obj )
 	return ModUtil.ToString.Deep( obj, 500 )
 end
 
-function StyxScribeREPL.RunLua( message )
+function StyxScribeREPL.RunLua( message, silent )
 	local func, err = load( "return " .. message )
 	if not func then
 		func, err = load( message )
@@ -29,7 +29,9 @@ function StyxScribeREPL.RunLua( message )
 	setfenv( func, StyxScribeREPL.Environment )
 	local ret = table.pack( pcall( func ) )
 	if ret.n <= 1 then return end
-	print( ModUtil.Args.Map( toString, table.unpack( ret, 2, ret.n ) ) )
+	if not silent then
+		print( ModUtil.Args.Map( toString, table.unpack( ret, 2, ret.n ) ) )
+	end
 	return table.unpack( ret, 2, ret.n )
 end
 
