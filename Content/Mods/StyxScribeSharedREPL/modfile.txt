@@ -1,0 +1,4 @@
+Load Priority 0
+Import "StyxScribeSharedREPL.lua"
+To "StyxScribeScripts/StyxScribeSharedREPL.py"
+Replace "StyxScribeSharedREPL.py"
