@@ -166,7 +166,7 @@ class Proxy(metaclass=MetaOverrider):
                     del registry[i]
                 except KeyError:
                     pass
-                if self._local:
+                if getattr(self, "_local", False):
                     Scribe.Send(f"StyxScribeShared: Del: {i}")
     def __getattribute__(self, name):
         if name in _meta_inherited[type(self)]:
@@ -416,6 +416,10 @@ class _Lazy(MetaOverrider):
         return type.__call__(cls, func, *args, **kwargs)
     
 def _Lazy__call__(self, func=None, *args, **kwargs):
+
+    if self.Done:
+        return self.Rets
+    
     rets = None
     if self._local and func is not None:
         self.Func = func

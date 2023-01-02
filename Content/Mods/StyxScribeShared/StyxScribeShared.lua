@@ -32,7 +32,7 @@ local function typeCall( m, f )
 end
 
 local function marshallType( ... )
-	local types = { ... }
+	local types = table.pack( ... )
 	local m = table.remove( types )
 	table.insert( marshallTypesOrder, m )
 	for _, t in ipairs( types ) do
@@ -378,6 +378,16 @@ local function newLazy( cls, f, ... )
 end
 
 local _Lazy__call = function( s, f, ... )
+
+	if s.Done then
+		local rets = s.Rets
+		local meta = getmetatable(rets)
+		if meta == Args then
+			return table.unpack( rets )
+		end
+		return rets
+	end
+
 	local meta = getmetatable( s )
 	local data = objectData[ s ]
 	local rets
@@ -396,7 +406,11 @@ local _Lazy__call = function( s, f, ... )
 	else
 		f = s.Func
 		local fmeta = getmetatable( f )
-		rets = table.pack( fmeta._call( f, s.Args ) )
+		if fmeta then
+			rets = table.pack( fmeta._call( f, s.Args ) )
+		else
+			rets = table.pack( f( table.unpack( s.Args ) ) )
+		end
 	end
 	if rets.n == 0 then
 		s.Rets = None

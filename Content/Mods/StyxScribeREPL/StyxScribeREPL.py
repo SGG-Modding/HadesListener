@@ -47,7 +47,7 @@ def RunPython(s):
         _locals["Scribe"] = Scribe
     s = s.lstrip()
     try:
-        _run_py_eval(s, _globals, _locals)
+        return _run_py_eval(s, _globals, _locals)
     except Exception:
         print(exception_string(), end='')
 
