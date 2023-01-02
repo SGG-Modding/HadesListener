@@ -20,7 +20,7 @@ local function toString( obj )
 	return ModUtil.ToString.Deep( obj, 500 )
 end
 
-function StyxScribeREPL.RunLua( message, silent )
+function StyxScribeREPL.RunLua( message, echo )
 	local func, err = load( "return " .. message )
 	if not func then
 		func, err = load( message )
@@ -29,7 +29,7 @@ function StyxScribeREPL.RunLua( message, silent )
 	setfenv( func, StyxScribeREPL.Environment )
 	local ret = table.pack( pcall( func ) )
 	if ret.n <= 1 then return end
-	if not silent then
+	if echo then
 		print( ModUtil.Args.Map( toString, table.unpack( ret, 2, ret.n ) ) )
 	end
 	return table.unpack( ret, 2, ret.n )
@@ -39,8 +39,12 @@ function StyxScribeREPL.RunPython( message )
 	print("StyxScribeREPL: " .. message )
 end
 
+local function runLua( message )
+	return StyxScribeREPL.RunLua( message, true )
+end
+
 StyxScribeREPL.Internal = ModUtil.UpValues( function( )
-	return toString
+	return toString, runLua
 end )
 
-StyxScribe.AddHook( StyxScribeREPL.RunLua, "StyxScribeREPL: ", StyxScribeREPL )
+StyxScribe.AddHook( runLua, "StyxScribeREPL: ", StyxScribeREPL )

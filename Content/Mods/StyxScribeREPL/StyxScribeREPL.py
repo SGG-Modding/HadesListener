@@ -30,14 +30,14 @@ def _run_py_eval(s, g, l):
             else:
                 raise SyntaxError from e
 
-def RunPython(s, silent=None):
+def RunPython(s, echo=None):
     _stdout = StringIO()
     rets = None
     with contextlib.redirect_stdout(_stdout):
         rets = _run_py(s)
     _stdout.flush()
     io = _stdout.getvalue()
-    if not silent and rets is not None:
+    if echo and rets is not None:
             io = str(rets) + '\n'
     if '\n' in io:
         print("".join((f"\n{_prefix_py}"+s for s in io.split('\n')[:-1]))[1:])
@@ -77,11 +77,14 @@ class KeyboardThread(threading.Thread):
         except KeyboardInterrupt:
             End()
 
+def _runPython(message):
+    return RunPython(message, True)
+
 def evaluate(inp):
     #evaluate the keyboard input
     if inp:
         if inp[:1] == ">":
-            RunPython(inp[1:])
+            _runPython(inp[1:])
         else:
             RunLua(inp)
 
@@ -90,5 +93,5 @@ Priority = 0
 def Load():
     #start the Keyboard thread
     Scribe.AddOnRun(lambda: KeyboardThread(evaluate), __name__)
-    Scribe.AddHook(_run_py, "StyxScribeREPL: ", __name__)
+    Scribe.AddHook(_runPython, "StyxScribeREPL: ", __name__)
     Scribe.IgnorePrefixes.append("StyxScribeREPL: ")
