@@ -1,6 +1,8 @@
 ModUtil.Mod.Register("StyxScribe")
 
 local hooks = { }
+local earlyHooks = { }
+local storage = { }
 local pollPeriod = 0.25
 local pollDelay = 0.01
 local prefixLua = "Lua:"
@@ -59,7 +61,7 @@ do
 	end
 end
 
-function StyxScribe.AddHook( callback, prefix, source )
+local function addHook( hooks, callback, prefix, source )
 	if source ~= nil then
 		if type( source ) ~= "string" then
 			source = ModUtil.Identifiers.Data[ source ]
@@ -73,6 +75,14 @@ function StyxScribe.AddHook( callback, prefix, source )
 	hooks[ prefix ] = base
 	send( prefixStyxScribe .. "Adding hook on \"" .. prefix .. 
 		"\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
+end
+
+function StyxScribe.AddHook( ... )
+	return addHook( hooks, ... )
+end
+
+function StyxScribe.AddEarlyHook( ... )
+	return addHook( earlyHooks, ... )
 end
 
 local function isPromise( promise )
@@ -99,42 +109,62 @@ local function callPromise( call, ... )
 	end
 end
 
-local function notify( ... )
+local function store( ... )
+	local i = #storage
 	for _, message in vararg( ... ) do
 		if debugMode then send( prefixStyxScribe .. "Received: " .. message ) end
-		for prefix, callbacks in rawpairs( hooks ) do
-			local tail = startswith( message, prefix )
-			if tail then
-				for _, callback in rawipairs( callbacks ) do
-					callPromise( callback, tail )
-				end
+		i = i + 1
+		storage[ i ] = message
+	end
+end
+
+local function notifyMessage( message, hooks )
+	for prefix, callbacks in rawpairs( hooks ) do
+		local tail = startswith( message, prefix )
+		if tail then
+			for _, callback in rawipairs( callbacks ) do
+				callPromise( callback, tail )
 			end
 		end
 	end
 end
 
+local function notify( )
+	local n = #storage
+	for i = 1, n, 1 do
+		notifyMessage( storage[ i ], earlyHooks )
+	end
+	for i = 1, n, 1 do
+		notifyMessage( storage[ i ], hooks )
+		storage[ i ] = nil
+	end
+end
+
 local debugMode = false
 
-local waitArgs = setmetatable({ screenTime = true }, {
+local waitArgs = setmetatable( { screenTime = true }, {
 	__index = function( _, k )
 		if k == "wait" then return pollPeriod end
 		if k == "threadInfo" then return lastGoodThreadInfo end
 		return nil
 	end
-})
+} )
 
 local function handle( valid, file, ... )
-	if valid then notify( ... ) end
+	if valid then store( ... ) end
 	return valid, file
 end
 
-local function poll( )
+function poll( )
 	local file
 	while true do
 		file = file or proxyFile
 		if debugMode then send( prefixStyxScribe .. "Polling...", file, _screenTime ) end
 		local valid, nextfile = handle( pcall( dofile, file ) )
-		if valid then file = nextfile end
+		if valid then
+			file = nextfile
+			notify( )
+		end
 		yield( waitArgs )
 	end
 end
@@ -176,5 +206,5 @@ end
 StyxScribe.Internal = ModUtil.UpValues( function( )
 	return debugMode, pollDelay, pollPeriod, notify, proxyFile, showDebugPrint, showDebugAssert, showDebugMessage,
 		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixDebugMessage, prefixStyxScribe, errorsHalt,
-		startswith, vararg, hooks, poke, poll, handle, waitArgs, callPromise, isPromise
+		startswith, vararg, hooks, poke, poll, handle, waitArgs, callPromise, isPromise, storage, store, notifymessage, addHook
 end )

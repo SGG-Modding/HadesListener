@@ -65,7 +65,7 @@ class KeyboardThread(threading.Thread):
     #repurposed from https://stackoverflow.com/a/57387909
     def __init__(self, input_cbk = None, name='keyboard-input-thread'):
         self.input_cbk = input_cbk
-        super(KeyboardThread, self).__init__(name=name)
+        super(__class__, self).__init__(name=name)
         self.start()
 
     def run(self):
