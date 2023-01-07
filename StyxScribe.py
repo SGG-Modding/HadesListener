@@ -5,6 +5,7 @@ Museus (Discord: Museus#7777)
 from collections import defaultdict, OrderedDict
 import os
 import sys
+import time
 import platform
 import pathlib
 import pkgutil
@@ -14,6 +15,7 @@ import signal
 import asyncio
 import functools
 import inspect
+import threading
 from asyncio import create_subprocess_exec as Popen
 from asyncio.subprocess import PIPE, STDOUT
 import traceback
@@ -71,7 +73,31 @@ def getattr_nocase(obj,name,default=None):
             return getattr(obj,n)
     return default
 
-class StyxScribe:
+class ActivityThread(threading.Thread):
+    def __init__(self, name="activity_thread"):
+        super(__class__, self).__init__(name=name)
+
+        self.lua_active = False
+        self.response_timeout = 0.5
+        self.response_period = 0.25
+        self.last_response_time = 0
+        self.on_lua_inactive = []
+        self.on_lua_active = []
+
+    @make_sync
+    async def run(self):
+        while True:
+            time.sleep(self.response_period)
+            active = self.lua_active
+            self.lua_active = time.time() - self.last_response_time < self.response_timeout
+            if active and not self.lua_active:
+                for callback in self.on_lua_inactive:
+                    await callpromise(callback)
+            elif not active and self.lua_active:
+                for callback in self.on_lua_active:
+                    await callpromise(callback)
+
+class StyxScribe():
     """
     Used to launch the game with a wrapper that listens for specified patterns.
     Calls any functions that are added via `add_hook` when patterns are detected.
@@ -122,6 +148,7 @@ class StyxScribe:
         self.ignore_prefixes = list(INTERNAL_IGNORE_PREFIXES)
         self.on_cleanups = []
         self.on_runs = []
+        self.activity = ActivityThread()
         
         self.queue = None
         self.loop = None
@@ -137,11 +164,21 @@ class StyxScribe:
         self.AddOnCleanup = self.add_on_cleanup
 
     @property
+    def LuaActive(self):
+        return self.activity.lua_active
+
+    @property
     def Loop(self):
         return self.loop
 
     def Send(self, message):
         return self.send(message)
+
+    def AddOnLuaActive(self, callback):
+        self.activity.on_lua_active.append(callback)
+
+    def AddOnLuaInactive(self, callback):
+        self.activity.on_lua_inactive.append(callback)
 
     def close(self, abort=True):
         try:
@@ -217,6 +254,8 @@ class StyxScribe:
             self.queue = asyncio.Queue()
             sender = asyncio.ensure_future(send_loop())
 
+            self.activity.start()
+
             for callback in self.on_runs:
                 await callpromise(callback)
 
@@ -238,6 +277,7 @@ class StyxScribe:
                     if not output:
                         break
                     output = output.rstrip("\r\n")
+                    
                     luaoutput = output.startswith(PREFIX_LUA)
                     if luaoutput:
                         output = output[len(PREFIX_LUA):]
@@ -251,8 +291,8 @@ class StyxScribe:
                             print(_output, file=out)
                             out.flush()
                     if output.startswith(PROXY_LOADED_PREFIX):
+                        self.activity.last_response_time = time.time()
                         setup_proxies()
-
                     for prefix, callbacks in self.hooks.items():
                         if output.startswith(prefix):
                             for callback in callbacks:

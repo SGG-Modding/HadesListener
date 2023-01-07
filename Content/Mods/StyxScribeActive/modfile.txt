@@ -1,4 +1,0 @@
-Load Priority 0
-Import "StyxScribeActive.lua"
-To "StyxScribeScripts/StyxScribeActive.py"
-Replace "StyxScribeActive.py"

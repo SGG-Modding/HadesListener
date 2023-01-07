@@ -1,4 +1,0 @@
-Load Priority 0
-Import "StyxScribeAlarm.lua"
-To "StyxScribeScripts/StyxScribeAlarm.py"
-Replace "StyxScribeAlarm.py"
