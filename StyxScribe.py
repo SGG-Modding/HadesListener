@@ -83,19 +83,34 @@ class ActivityThread(threading.Thread):
         self.last_response_time = 0
         self.on_lua_inactive = []
         self.on_lua_active = []
+        self.inactive_time = None
+        self.active_time = None
 
     @make_sync
     async def run(self):
         while True:
             time.sleep(self.response_period)
             active = self.lua_active
-            self.lua_active = time.time() - self.last_response_time < self.response_timeout
+            now = time.time()
+            self.lua_active = now - self.last_response_time < self.response_timeout
             if active and not self.lua_active:
-                for callback in self.on_lua_inactive:
-                    await callpromise(callback)
+                self.inactive_time = now
             elif not active and self.lua_active:
-                for callback in self.on_lua_active:
-                    await callpromise(callback)
+                self.active_time = now
+            if not self.lua_active and self.inactive_time is not None:
+                for d in self.on_lua_inactive:
+                    span = None
+                    if len(d) >= 2:
+                        span = d[1]
+                    if span is None or now - self.inactive_time > span:
+                        await callpromise(d[0])
+            elif self.lua_active and self.active_time is not None:
+                for d in self.on_lua_active:
+                    span = None
+                    if len(d) >= 2:
+                        span = d[1]
+                    if span is None or now - self.active_time > span:
+                        await callpromise(d[0])
 
 class StyxScribe():
     """
@@ -168,17 +183,25 @@ class StyxScribe():
         return self.activity.lua_active
 
     @property
+    def LastLuaActiveTime(self):
+        return self.activity.active_time
+
+    @property
+    def LastLuaInactiveTime(self):
+        return self.activity.inactive_time
+
+    @property
     def Loop(self):
         return self.loop
 
     def Send(self, message):
         return self.send(message)
 
-    def AddOnLuaActive(self, callback):
-        self.activity.on_lua_active.append(callback)
+    def AddOnLuaActive(self, *args):
+        self.activity.on_lua_active.append(args)
 
-    def AddOnLuaInactive(self, callback):
-        self.activity.on_lua_inactive.append(callback)
+    def AddOnLuaInactive(self, *args):
+        self.activity.on_lua_inactive.append(args)
 
     def close(self, abort=True):
         try:
