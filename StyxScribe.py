@@ -36,6 +36,8 @@ PREFIX_ENGINE = "Engine:\t"
 PREFIX_INPUT = "In:\t"
 EXCLUDE_ENGINE = True
 ERRORS_HALT = True
+PRINT_HOOKS = False
+PRINT_MODULES = True
 
 #https://github.com/pallets/click/issues/2033#issue-960810534
 def make_sync(func):
@@ -353,7 +355,8 @@ class StyxScribe():
         self.on_runs.append(callback)
         if source is not None:
             callback = f"{callback} from {source}"
-        print(f"Adding hook to game run with {callback}")
+        if PRINT_HOOKS:
+            print(f"Adding hook to game run with {callback}")
 
     def add_on_cleanup(self, callback, source=None):
         if callback in self.on_cleanups:
@@ -366,7 +369,8 @@ class StyxScribe():
         self.on_cleanups.append(callback)
         if source is not None:
             callback = f"{callback} from {source}"
-        print(f"Adding hook to game cleanup with {callback}")
+        if PRINT_HOOKS:
+            print(f"Adding hook to game cleanup with {callback}")
 
     def add_hook(self, callback, prefix, source=None):
         """Add a target function to be called when pattern is detected
@@ -388,7 +392,8 @@ class StyxScribe():
         self.hooks[prefix].append(callback)
         if source is not None:
             callback = f"{callback} from {source}"
-        print(f"Adding hook on \"{prefix}\" with {callback}")
+        if PRINT_HOOKS:
+            print(f"Adding hook on \"{prefix}\" with {callback}")
 
     def load_plugins(self):
         modules = OrderedDict()
@@ -399,12 +404,14 @@ class StyxScribe():
             module.scribe = self
             module.Scribe = self
             modules[name] =  module
-        print("Found Modules: "+', '.join(modules.keys()))
+        if PRINT_MODULES:
+            print("Found Modules: "+', '.join(modules.keys()))
         def key(t):
             return getattr_nocase(t[1], "priority", 100)
         modules = OrderedDict(sorted(modules.items(), key=key))
         self.modules.update(modules)
-        print("Loading Modules: "+', '.join(modules.keys()))
+        if PRINT_MODULES:
+            print("Loading Modules: "+', '.join(modules.keys()))
         for module in modules.values():
             _load = getattr_nocase(module, "Load")
             if _load is not None:

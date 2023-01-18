@@ -15,6 +15,7 @@ local showDebugPrint = false
 local showDebugMessage = false
 local showDebugAssert = false
 local errorsHalt = true
+local printHooks = false
 
 ModUtil.Path.Wrap( "print", function( base, ... )
 	local msg = table.rawconcat( table.pack( ... ), '\t' ):gsub('\n', '\n' .. prefixLua .. '\t')
@@ -73,8 +74,10 @@ local function addHook( hooks, callback, prefix, source )
 	local base = hooks[ prefix ] or { }
 	table.insert( base, callback )
 	hooks[ prefix ] = base
-	send( prefixStyxScribe .. "Adding hook on \"" .. prefix .. 
-		"\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
+	if printHooks then
+		send( prefixStyxScribe .. "Adding hook on \"" .. prefix .. 
+			"\" with " .. tostring( callback ) .. ( source and ( " from " .. source ) or "" ) )
+	end
 end
 
 function StyxScribe.AddHook( ... )
@@ -205,6 +208,6 @@ end
 
 StyxScribe.Internal = ModUtil.UpValues( function( )
 	return debugMode, pollDelay, pollPeriod, notify, proxyFile, showDebugPrint, showDebugAssert, showDebugMessage,
-		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixDebugMessage, prefixStyxScribe, errorsHalt,
+		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixDebugMessage, prefixStyxScribe, errorsHalt, printHooks,
 		startswith, vararg, hooks, poke, poll, handle, waitArgs, callPromise, isPromise, storage, store, notifymessage, addHook
 end )
