@@ -603,4 +603,4 @@ def Load():
     Scribe.AddHook(handleDel, "StyxScribeShared: Del: ", __name__)
     Scribe.AddHook(handleAct, "StyxScribeShared: Act: ", __name__)
     Scribe.AddHook(handleAsync, "StyxScribeShared: Async: ", __name__)
-    Scribe.IgnorePrefixes.append("StyxScribeShared: ")
+    #Scribe.IgnorePrefixes.append("StyxScribeShared: ")

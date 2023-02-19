@@ -609,10 +609,17 @@ function StyxScribeShared.SetName( proxy, name )
 	StyxScribe.Send( "StyxScribeShared: Name: " .. id .. delim .. encode( name ) )
 end
 
+local function debugMessagePrint( f )
+	return function( ... )
+		StyxScribe.Send( "StyxScribeShared: DEBUG", ... )
+		return f( ... )
+	end
+end
+
 StyxScribeShared.Internal = ModUtil.UpValues( function( )
 	return registry, lookup, delim, newline, objectData, split, class, new, nop,
 		marshallType, marshallTypes, marshaller, marshall, _table, _function,
-		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready, promises,
+		Proxy, ProxySet, ProxyCall, typeCall, decode, encode, ready, promises, debugMessagePrint,
 		handlePyReset, handleLuaReset, handleName, handleNew, handleSet, handleAct, handleDel, handleAsync,
 		None, Table, Array, Args, KWArgs, Action, KWAction, Relay, KWRelay, Async, KWAsync, Lazy, KWLazy
 end )
@@ -623,11 +630,13 @@ ModUtil.Table.Merge( StyxScribeShared, {
 	Relay = Relay, KWRelay = KWRelay, Async = Async, KWAsync = KWAsync, Lazy = Lazy, KWLazy = KWLazy
 } )
 
-StyxScribe.AddHook( handlePyReset, "StyxScribeShared: Reset", StyxScribeShared )
-StyxScribe.AddHook( handleName, "StyxScribeShared: Name: ", StyxScribeShared )
-StyxScribe.AddHook( handleNew, "StyxScribeShared: New: ", StyxScribeShared )
-StyxScribe.AddHook( handleSet, "StyxScribeShared: Set: ", StyxScribeShared )
-StyxScribe.AddHook( handleDel, "StyxScribeShared: Del: ", StyxScribeShared )
-StyxScribe.AddHook( handleAct, "StyxScribeShared: Act: ", StyxScribeShared )
-StyxScribe.AddHook( handleAsync, "StyxScribeShared: Async: ", StyxScribeShared )
+
+
+StyxScribe.AddHook( debugMessagePrint( handlePyReset ), "StyxScribeShared: Reset", StyxScribeShared )
+StyxScribe.AddHook( debugMessagePrint( handleName ), "StyxScribeShared: Name: ", StyxScribeShared )
+StyxScribe.AddHook( debugMessagePrint( handleNew ), "StyxScribeShared: New: ", StyxScribeShared )
+StyxScribe.AddHook( debugMessagePrint( handleSet ), "StyxScribeShared: Set: ", StyxScribeShared )
+StyxScribe.AddHook( debugMessagePrint( handleDel ), "StyxScribeShared: Del: ", StyxScribeShared )
+StyxScribe.AddHook( debugMessagePrint( handleAct ), "StyxScribeShared: Act: ", StyxScribeShared )
+StyxScribe.AddHook( debugMessagePrint( handleAsync ), "StyxScribeShared: Async: ", StyxScribeShared )
 handleLuaReset( )
