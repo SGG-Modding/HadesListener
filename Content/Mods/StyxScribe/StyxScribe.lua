@@ -14,7 +14,7 @@ local proxyFile = "proxy_stdin.txt"
 local showDebugPrint = false
 local showDebugMessage = false
 local showDebugAssert = false
-local errorsHalt = true
+local errorsHalt = false
 local printHooks = false
 
 ModUtil.Path.Wrap( "print", function( base, ... )
