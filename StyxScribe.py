@@ -20,10 +20,6 @@ from asyncio import create_subprocess_exec as Popen
 from asyncio.subprocess import PIPE, STDOUT
 import traceback
 
-# Do not include extension
-EXECUTABLE_NAMES = { "hades" : "Hades", "pyre": "Pyre" }
-# Do not include leading character (/ or -)
-EXECUTABLE_ARGS = ["DebugDraw=true", "DebugKeysEnabled=true", "RequireFocusToUpdate=false"]
 PLUGIN_SUBPATH = "StyxScribeScripts"
 LUA_PROXY_STDIN = "proxy_stdin.txt"
 LUA_PROXY_FALSE = "proxy_first.txt"
@@ -130,19 +126,19 @@ class StyxScribe():
                 return True
             return self.__contains__(key)
 
-    def __init__(self, game="Hades"):
-        self.executable_name = EXECUTABLE_NAMES[game.lower()]
+    def __init__(self, game = "Hades", build = "x64", args = tuple()):
+        self.executable_name = game
         if platform.system() != "Darwin":
             self.executable_purepath = (
-                pathlib.PurePath() / "x64" / f"{self.executable_name}.exe"
+                pathlib.PurePath() / build / f"{self.executable_name}.exe"
             )
-            self.args = [f"/{arg}" for arg in EXECUTABLE_ARGS]
+            self.args = [f"/{arg}" for arg in args]
             self.plugins_paths = [str(
                 pathlib.PurePath() / "Content" / PLUGIN_SUBPATH
             )]
         else:
             self.executable_purepath = pathlib.PurePath() / self.executable_name
-            self.args = [f"-{arg}" for arg in executable_args]
+            self.args = [f"-{arg}" for arg in args]
             self.plugins_paths = [str(
                 pathlib.PurePath() / "Contents/Resources/Content" / PLUGIN_SUBPATH
             )]

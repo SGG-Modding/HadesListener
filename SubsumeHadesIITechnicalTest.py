@@ -4,7 +4,8 @@ import sys, os
 from pathlib import Path
 os.chdir(Path(sys.argv[0]).parent)
 
-subsume = StyxScribe("Hades", "x64", [
+subsume = StyxScribe("Hades2", "Ship", [
+    "VerboseScriptLogging=true",
     "DebugDraw=true",
     "DebugKeysEnabled=true",
     "RequireFocusToUpdate=false",

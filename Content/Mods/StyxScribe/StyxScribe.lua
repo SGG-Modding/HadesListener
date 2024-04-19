@@ -145,7 +145,7 @@ end
 
 local debugMode = false
 
-local waitArgs = setmetatable( { screenTime = true }, {
+local waitArgs = setmetatable( { screenTime = true, unmodifiedTime = true, tag = poll, Persist = true }, {
 	__index = function( _, k )
 		if k == "wait" then return pollPeriod end
 		if k == "threadInfo" then return lastGoodThreadInfo end
@@ -173,8 +173,10 @@ function poll( )
 end
 thread( poll )
 
+local doWait = waitScreenTime or waitUnmodified
+
 local function poke( )
-	waitScreenTime( pollDelay )
+	doWait( pollDelay, poke, true )
 	return send( prefixStyxScribe .. "Polling..." )
 end
 thread( poke )
@@ -209,5 +211,6 @@ end
 StyxScribe.Internal = ModUtil.UpValues( function( )
 	return debugMode, pollDelay, pollPeriod, notify, proxyFile, showDebugPrint, showDebugAssert, showDebugMessage,
 		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixDebugMessage, prefixStyxScribe, errorsHalt, printHooks,
+		prefixLua, prefixDebugPrint, prefixDebugAssert, prefixDebugMessage, prefixStyxScribe, errorsHalt, printHooks, doWait,
 		startswith, vararg, hooks, poke, poll, handle, waitArgs, callPromise, isPromise, storage, store, notifymessage, addHook
 end )
